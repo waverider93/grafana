@@ -40,9 +40,11 @@ func (srv *CleanUpService) Run(ctx context.Context) error {
 			srv.cleanUpTmpFiles()
 			srv.deleteExpiredSnapshots()
 			srv.deleteExpiredDashboardVersions()
-			srv.ServerLockService.LockAndExecute(ctx, "delete old login attempts", time.Minute*10, func() {
+			if err := srv.ServerLockService.LockAndExecute(ctx, "delete old login attempts", time.Minute*10, func() {
 				srv.deleteOldLoginAttempts()
-			})
+			}); err != nil {
+				// TODO: Deal with error
+			}
 
 		case <-ctx.Done():
 			return ctx.Err()

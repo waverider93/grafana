@@ -36,7 +36,9 @@ type ContextCommandLine struct {
 }
 
 func (c *ContextCommandLine) ShowHelp() {
-	cli.ShowCommandHelp(c.Context, c.Command.Name)
+	if err := cli.ShowCommandHelp(c.Context, c.Command.Name); err != nil {
+		// TODO: Deal with error
+	}
 }
 
 func (c *ContextCommandLine) ShowVersion() {

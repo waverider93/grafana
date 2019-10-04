@@ -392,7 +392,9 @@ func SetAlertNotificationStateToCompleteCommand(ctx context.Context, cmd *m.SetA
 	return inTransactionCtx(ctx, func(sess *DBSession) error {
 		version := cmd.Version
 		var current m.AlertNotificationState
-		sess.ID(cmd.Id).Get(&current)
+		if _, err := sess.ID(cmd.Id).Get(&current); err != nil {
+			// TODO: Deal with error
+		}
 
 		newVersion := cmd.Version + 1
 

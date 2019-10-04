@@ -151,10 +151,14 @@ func HandleAlertsQuery(query *m.GetAlertsQuery) error {
 
 func deleteAlertDefinition(dashboardId int64, sess *DBSession) error {
 	alerts := make([]*m.Alert, 0)
-	sess.Where("dashboard_id = ?", dashboardId).Find(&alerts)
+	if err := sess.Where("dashboard_id = ?", dashboardId).Find(&alerts); err != nil {
+		return err
+	}
 
 	for _, alert := range alerts {
-		deleteAlertByIdInternal(alert.Id, "Dashboard deleted", sess)
+		if err := deleteAlertByIdInternal(alert.Id, "Dashboard deleted", sess); err != nil {
+			// TODO: Deal with error
+		}
 	}
 
 	return nil
@@ -251,7 +255,9 @@ func deleteMissingAlerts(alerts []*m.Alert, cmd *m.SaveAlertsCommand, sess *DBSe
 		}
 
 		if missing {
-			deleteAlertByIdInternal(missingAlert.Id, "Removed from dashboard", sess)
+			if err := deleteAlertByIdInternal(missingAlert.Id, "Removed from dashboard", sess); err != nil {
+				// TODO: Deal with error
+			}
 		}
 	}
 

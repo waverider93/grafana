@@ -262,7 +262,9 @@ func (s *UserAuthTokenService) TryRotateToken(ctx context.Context, token *models
 	s.log.Debug("auth token rotated", "affected", affected, "auth_token_id", model.Id, "userId", model.UserId)
 	if affected > 0 {
 		model.UnhashedToken = newToken
-		model.toUserToken(token)
+		if err := model.toUserToken(token); err != nil {
+			return false, err
+		}
 		return true, nil
 	}
 
@@ -347,7 +349,6 @@ func (s *UserAuthTokenService) BatchRevokeAllUserTokens(ctx context.Context, use
 }
 
 func (s *UserAuthTokenService) GetUserToken(ctx context.Context, userId, userTokenId int64) (*models.UserToken, error) {
-
 	var result models.UserToken
 	err := s.SQLStore.WithDbSession(ctx, func(dbSession *sqlstore.DBSession) error {
 		var token userAuthToken
@@ -360,8 +361,7 @@ func (s *UserAuthTokenService) GetUserToken(ctx context.Context, userId, userTok
 			return models.ErrUserTokenNotFound
 		}
 
-		token.toUserToken(&result)
-		return nil
+		return token.toUserToken(&result)
 	})
 
 	return &result, err
@@ -384,7 +384,9 @@ func (s *UserAuthTokenService) GetUserTokens(ctx context.Context, userId int64) 
 
 		for _, token := range tokens {
 			var userToken models.UserToken
-			token.toUserToken(&userToken)
+			if err := token.toUserToken(&userToken); err != nil {
+				return err
+			}
 			result = append(result, &userToken)
 		}
 
