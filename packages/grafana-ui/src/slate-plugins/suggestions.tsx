@@ -4,22 +4,11 @@ import sortBy from 'lodash/sortBy';
 
 import { Editor as CoreEditor } from 'slate';
 import { Plugin as SlatePlugin } from '@grafana/slate-react';
-import { TypeaheadOutput, CompletionItem, CompletionItemGroup } from 'app/types';
 
-import { QueryField, TypeaheadInput } from '../QueryField';
-import TOKEN_MARK from '@grafana/ui/src/slate-plugins/slate-prism/TOKEN_MARK';
-import { TypeaheadWithTheme, Typeahead } from '../Typeahead';
-
-import { makeFragment } from '@grafana/ui';
-
+import TOKEN_MARK from './slate-prism/TOKEN_MARK';
+import { makeFragment, TypeaheadOutput, CompletionItem, TypeaheadInput, SuggestionsState } from '..';
+import { Typeahead } from '../components/Typeahead/Typeahead';
 export const TYPEAHEAD_DEBOUNCE = 100;
-
-export interface SuggestionsState {
-  groupedItems: CompletionItemGroup[];
-  typeaheadPrefix: string;
-  typeaheadContext: string;
-  typeaheadText: string;
-}
 
 let state: SuggestionsState = {
   groupedItems: [],
@@ -28,21 +17,21 @@ let state: SuggestionsState = {
   typeaheadText: '',
 };
 
-export default function SuggestionsPlugin({
+export function SuggestionsPlugin({
   onTypeahead,
   cleanText,
   onWillApplySuggestion,
   syntax,
   portalOrigin,
-  component,
 }: {
-  onTypeahead: (typeahead: TypeaheadInput) => Promise<TypeaheadOutput>;
+  onTypeahead?: (typeahead: TypeaheadInput) => Promise<TypeaheadOutput>;
   cleanText?: (text: string) => string;
   onWillApplySuggestion?: (suggestion: string, state: SuggestionsState) => string;
   syntax?: string;
   portalOrigin: string;
-  component: QueryField; // Need to attach typeaheadRef here
 }): SlatePlugin {
+  let typeahead: Typeahead;
+
   return {
     onBlur: (event, editor, next) => {
       state = {
@@ -62,15 +51,16 @@ export default function SuggestionsPlugin({
       return next();
     },
 
-    onKeyDown: (event: KeyboardEvent, editor, next) => {
+    onKeyDown: (event: Event, editor, next) => {
+      const keyEvent = event as KeyboardEvent;
       const currentSuggestions = state.groupedItems;
 
       const hasSuggestions = currentSuggestions.length;
 
-      switch (event.key) {
+      switch (keyEvent.key) {
         case 'Escape': {
           if (hasSuggestions) {
-            event.preventDefault();
+            keyEvent.preventDefault();
 
             state = {
               ...state,
@@ -87,8 +77,8 @@ export default function SuggestionsPlugin({
         case 'ArrowDown':
         case 'ArrowUp':
           if (hasSuggestions) {
-            event.preventDefault();
-            component.typeaheadRef.moveMenuIndex(event.key === 'ArrowDown' ? 1 : -1);
+            keyEvent.preventDefault();
+            typeahead.moveMenuIndex(keyEvent.key === 'ArrowDown' ? 1 : -1);
             return;
           }
 
@@ -97,8 +87,8 @@ export default function SuggestionsPlugin({
         case 'Enter':
         case 'Tab': {
           if (hasSuggestions) {
-            event.preventDefault();
-            return component.typeaheadRef.insertSuggestion();
+            keyEvent.preventDefault();
+            return typeahead.insertSuggestion();
           }
 
           break;
@@ -185,8 +175,8 @@ export default function SuggestionsPlugin({
       return (
         <>
           {children}
-          <TypeaheadWithTheme
-            menuRef={(el: Typeahead) => (component.typeaheadRef = el)}
+          <Typeahead
+            menuRef={menu => (typeahead = menu)}
             origin={portalOrigin}
             prefix={state.typeaheadPrefix}
             isOpen={!!state.groupedItems.length}
@@ -216,25 +206,30 @@ const handleTypeahead = debounce(
     // Get decorations associated with the current line
     const parentBlock = value.document.getClosestBlock(value.focusBlock.key);
     const myOffset = value.selection.start.offset - 1;
-    const decorations = parentBlock.getDecorations(editor as any);
+    const decorations = parentBlock && parentBlock.getDecorations(editor as any);
 
     const filteredDecorations = decorations
-      .filter(
-        decoration =>
-          decoration.start.offset <= myOffset && decoration.end.offset > myOffset && decoration.type === TOKEN_MARK
-      )
-      .toArray();
+      ? decorations
+          .filter(
+            decoration =>
+              decoration!.start.offset <= myOffset &&
+              decoration!.end.offset > myOffset &&
+              decoration!.type === TOKEN_MARK
+          )
+          .toArray()
+      : [];
 
     // Find the first label key to the left of the cursor
-    const labelKeyDec = decorations
-      .filter(decoration => {
-        return (
-          decoration.end.offset <= myOffset &&
-          decoration.type === TOKEN_MARK &&
-          decoration.data.get('className').includes('label-key')
-        );
-      })
-      .last();
+    const labelKeyDec =
+      decorations &&
+      decorations
+        .filter(
+          decoration =>
+            decoration!.end.offset <= myOffset &&
+            decoration!.type === TOKEN_MARK &&
+            decoration!.data.get('className').includes('label-key')
+        )
+        .last();
 
     const labelKey = labelKeyDec && value.focusText.text.slice(labelKeyDec.start.offset, labelKeyDec.end.offset);
 
@@ -266,7 +261,7 @@ const handleTypeahead = debounce(
       text,
       value,
       wrapperClasses,
-      labelKey,
+      labelKey: labelKey || undefined,
     });
 
     const filteredSuggestions = suggestions
@@ -302,7 +297,7 @@ const handleTypeahead = debounce(
       ...state,
       groupedItems: filteredSuggestions,
       typeaheadPrefix: prefix,
-      typeaheadContext: context,
+      typeaheadContext: context || '',
       typeaheadText: text,
     };
 

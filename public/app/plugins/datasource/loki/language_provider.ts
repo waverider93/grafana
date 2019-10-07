@@ -6,12 +6,13 @@ import { parseSelector, labelRegexp, selectorRegexp } from 'app/plugins/datasour
 import syntax from './syntax';
 
 // Types
-import { CompletionItem, LanguageProvider, TypeaheadInput, TypeaheadOutput, HistoryItem } from 'app/types/explore';
+import { LanguageProvider, HistoryItem } from 'app/types/explore';
 import { LokiQuery } from './types';
 import { dateTime, AbsoluteTimeRange } from '@grafana/data';
 import { PromQuery } from '../prometheus/types';
 
 import LokiDatasource from './datasource';
+import { CompletionItem, TypeaheadInput, TypeaheadOutput } from '@grafana/ui';
 
 const DEFAULT_KEYS = ['job', 'namespace'];
 const EMPTY_SELECTOR = '{}';

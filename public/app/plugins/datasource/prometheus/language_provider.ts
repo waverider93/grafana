@@ -2,20 +2,14 @@ import _ from 'lodash';
 
 import { dateTime } from '@grafana/data';
 
-import {
-  CompletionItem,
-  CompletionItemGroup,
-  LanguageProvider,
-  TypeaheadInput,
-  TypeaheadOutput,
-  HistoryItem,
-} from 'app/types/explore';
+import { LanguageProvider, HistoryItem } from 'app/types/explore';
 
 import { parseSelector, processLabels, processHistogramLabels } from './language_utils';
 import PromqlSyntax, { FUNCTIONS, RATE_RANGES } from './promql';
 
 import { PrometheusDatasource } from './datasource';
 import { PromQuery } from './types';
+import { CompletionItem, TypeaheadInput, TypeaheadOutput, CompletionItemGroup } from '@grafana/ui';
 
 const DEFAULT_KEYS = ['job', 'instance'];
 const EMPTY_SELECTOR = '{}';

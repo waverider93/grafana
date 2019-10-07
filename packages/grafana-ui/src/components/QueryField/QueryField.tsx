@@ -6,19 +6,17 @@ import { Editor, Plugin } from '@grafana/slate-react';
 import Plain from 'slate-plain-serializer';
 import classnames from 'classnames';
 
-import { CompletionItemGroup, TypeaheadOutput } from 'app/types/explore';
+import {
+  ClearPlugin,
+  NewlinePlugin,
+  SelectionShortcutsPlugin,
+  IndentationPlugin,
+  ClipboardPlugin,
+  RunnerPlugin,
+  SuggestionsPlugin,
+} from '../../slate-plugins';
 
-import ClearPlugin from './slate-plugins/clear';
-import NewlinePlugin from './slate-plugins/newline';
-import SelectionShortcutsPlugin from './slate-plugins/selection_shortcuts';
-import IndentationPlugin from './slate-plugins/indentation';
-import ClipboardPlugin from './slate-plugins/clipboard';
-import RunnerPlugin from './slate-plugins/runner';
-import SuggestionsPlugin, { SuggestionsState } from './slate-plugins/suggestions';
-
-import { Typeahead } from './Typeahead';
-
-import { makeValue, SCHEMA } from '@grafana/ui';
+import { makeValue, SCHEMA, CompletionItemGroup, TypeaheadOutput, TypeaheadInput, SuggestionsState } from '../..';
 
 export const HIGHLIGHT_WAIT = 500;
 
@@ -32,7 +30,7 @@ export interface QueryFieldProps {
   onTypeahead?: (typeahead: TypeaheadInput) => Promise<TypeaheadOutput>;
   onWillApplySuggestion?: (suggestion: string, state: SuggestionsState) => string;
   placeholder?: string;
-  portalOrigin?: string;
+  portalOrigin: string;
   syntax?: string;
   syntaxLoaded?: boolean;
 }
@@ -43,16 +41,7 @@ export interface QueryFieldState {
   typeaheadPrefix: string;
   typeaheadText: string;
   value: Value;
-  lastExecutedValue: Value;
-}
-
-export interface TypeaheadInput {
-  prefix: string;
-  selection?: Selection;
-  text: string;
-  value: Value;
-  wrapperClasses: string[];
-  labelKey?: string;
+  lastExecutedValue: Value | null;
 }
 
 /**
@@ -62,13 +51,10 @@ export interface TypeaheadInput {
  * Implement props.onTypeahead to use suggestions, see PromQueryField.tsx as an example.
  */
 export class QueryField extends React.PureComponent<QueryFieldProps, QueryFieldState> {
-  menuEl: HTMLElement | null;
   plugins: Plugin[];
-  resetTimer: NodeJS.Timer;
-  mounted: boolean;
+  mounted = false;
   updateHighlightsTimer: Function;
-  editor: Editor;
-  typeaheadRef: Typeahead;
+  editor: Editor | null = null;
 
   constructor(props: QueryFieldProps, context: Context<any>) {
     super(props, context);
@@ -80,7 +66,7 @@ export class QueryField extends React.PureComponent<QueryFieldProps, QueryFieldS
     // Base plugins
     this.plugins = [
       NewlinePlugin(),
-      SuggestionsPlugin({ onTypeahead, cleanText, portalOrigin, onWillApplySuggestion, component: this }),
+      SuggestionsPlugin({ onTypeahead, cleanText, portalOrigin, onWillApplySuggestion }),
       ClearPlugin(),
       RunnerPlugin({ handler: this.executeOnChangeAndRunQueries }),
       SelectionShortcutsPlugin(),
@@ -105,7 +91,6 @@ export class QueryField extends React.PureComponent<QueryFieldProps, QueryFieldS
 
   componentWillUnmount() {
     this.mounted = false;
-    clearTimeout(this.resetTimer);
   }
 
   componentDidUpdate(prevProps: QueryFieldProps, prevState: QueryFieldState) {
@@ -123,6 +108,10 @@ export class QueryField extends React.PureComponent<QueryFieldProps, QueryFieldS
 
   UNSAFE_componentWillReceiveProps(nextProps: QueryFieldProps) {
     if (nextProps.syntaxLoaded && !this.props.syntaxLoaded) {
+      if (!this.editor) {
+        return;
+      }
+
       // Need a bogus edit to re-render the editor after syntax has fully loaded
       const editor = this.editor.insertText(' ').deleteBackward(1);
       this.onChange(editor.value, true);
@@ -170,7 +159,7 @@ export class QueryField extends React.PureComponent<QueryFieldProps, QueryFieldS
 
   handleBlur = (event: Event, editor: CoreEditor, next: Function) => {
     const { lastExecutedValue } = this.state;
-    const previousValue = lastExecutedValue ? Plain.serialize(this.state.lastExecutedValue) : null;
+    const previousValue = lastExecutedValue ? Plain.serialize(lastExecutedValue) : null;
     const currentValue = Plain.serialize(editor.value);
 
     if (previousValue !== currentValue) {
@@ -192,7 +181,7 @@ export class QueryField extends React.PureComponent<QueryFieldProps, QueryFieldS
       <div className={wrapperClassName}>
         <div className="slate-query-field">
           <Editor
-            ref={editor => (this.editor = editor)}
+            ref={editor => (this.editor = editor!)}
             schema={SCHEMA}
             autoCorrect={false}
             readOnly={this.props.disabled}
