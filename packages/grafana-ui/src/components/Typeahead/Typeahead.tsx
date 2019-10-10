@@ -25,7 +25,7 @@ interface State {
   listWidth: number;
   listHeight: number;
   itemHeight: number;
-  hoveredItem: number;
+  hoveredItem: number | null;
   typeaheadIndex: number;
 }
 
@@ -34,7 +34,7 @@ export class Typeahead extends React.PureComponent<Props, State> {
   context!: React.ContextType<typeof ThemeContext>;
   listRef = createRef<FixedSizeList>();
 
-  state: State = { hoveredItem: -1, typeaheadIndex: 1, allItems: [], listWidth: -1, listHeight: -1, itemHeight: -1 };
+  state: State = { hoveredItem: null, typeaheadIndex: 1, allItems: [], listWidth: -1, listHeight: -1, itemHeight: -1 };
 
   componentDidMount = () => {
     if (this.props.menuRef) {
@@ -87,7 +87,7 @@ export class Typeahead extends React.PureComponent<Props, State> {
 
   onMouseLeave = () => {
     this.setState({
-      hoveredItem: -1,
+      hoveredItem: null,
     });
   };
 
