@@ -14,7 +14,7 @@ func (srv *UserAuthTokenService) Run(ctx context.Context) error {
 
 	err := srv.ServerLockService.LockAndExecute(ctx, "cleanup expired auth tokens", time.Hour*12, func() {
 		if _, err := srv.deleteExpiredTokens(ctx, maxInactiveLifetime, maxLifetime); err != nil {
-			// TODO: Deal with error
+			srv.log.Error("An error occurred while deleting expired tokens", "err", err)
 		}
 	})
 	if err != nil {
@@ -26,7 +26,7 @@ func (srv *UserAuthTokenService) Run(ctx context.Context) error {
 		case <-ticker.C:
 			err := srv.ServerLockService.LockAndExecute(ctx, "cleanup expired auth tokens", time.Hour*12, func() {
 				if _, err := srv.deleteExpiredTokens(ctx, maxInactiveLifetime, maxLifetime); err != nil {
-					// TODO: Deal with error
+					srv.log.Error("An error occurred while deleting expired tokens", "err", err)
 				}
 			})
 			if err != nil {
