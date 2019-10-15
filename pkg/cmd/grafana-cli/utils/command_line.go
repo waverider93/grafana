@@ -7,7 +7,7 @@ import (
 )
 
 type CommandLine interface {
-	ShowHelp()
+	ShowHelp() error
 	ShowVersion()
 	Application() *cli.App
 	Args() cli.Args
@@ -35,10 +35,8 @@ type ContextCommandLine struct {
 	*cli.Context
 }
 
-func (c *ContextCommandLine) ShowHelp() {
-	if err := cli.ShowCommandHelp(c.Context, c.Command.Name); err != nil {
-		// TODO: Deal with error
-	}
+func (c *ContextCommandLine) ShowHelp() error {
+	return cli.ShowCommandHelp(c.Context, c.Command.Name)
 }
 
 func (c *ContextCommandLine) ShowVersion() {
