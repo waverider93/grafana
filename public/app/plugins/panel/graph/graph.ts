@@ -24,17 +24,22 @@ import ReactDOM from 'react-dom';
 import { GraphLegendProps, Legend } from './Legend/Legend';
 
 import { GraphCtrl } from './module';
+import { ContextMenuGroup, ContextMenuItem } from '@grafana/ui';
+import { provideTheme, getCurrentTheme } from 'app/core/utils/ConfigProvider';
 import {
+  toUtc,
+  LinkModelSupplier,
+  DataFrameView,
   getValueFormat,
-  ContextMenuGroup,
   FieldDisplay,
-  ContextMenuItem,
   getDisplayProcessor,
   getFlotPairsConstant,
   PanelEvents,
-} from '@grafana/ui';
-import { provideTheme, getCurrentTheme } from 'app/core/utils/ConfigProvider';
-import { toUtc, LinkModelSupplier, DataFrameView } from '@grafana/data';
+  formattedValueToString,
+  FieldType,
+  DataFrame,
+  getTimeField,
+} from '@grafana/data';
 import { GraphContextMenuCtrl } from './GraphContextMenuCtrl';
 import { TimeSrv } from 'app/features/dashboard/services/TimeSrv';
 import { ContextSrv } from 'app/core/services/context_srv';
@@ -99,7 +104,7 @@ class GraphElement {
 
     this.annotations = this.ctrl.annotations || [];
     this.buildFlotPairs(this.data);
-    const graphHeight = this.elem.height();
+    const graphHeight = this.ctrl.height;
     updateLegendValues(this.data, this.panel, graphHeight);
 
     if (!this.panel.legend.show) {
@@ -195,7 +200,7 @@ class GraphElement {
           items: [
             {
               label: 'Add annotation',
-              icon: 'gicon gicon-annotation',
+              icon: 'comment-alt',
               onClick: () => this.eventManager.updateTime({ from: flotPosition.x, to: null }),
             },
           ],
@@ -213,7 +218,8 @@ class GraphElement {
               label: link.title,
               url: link.href,
               target: link.target,
-              icon: `fa ${link.target === '_self' ? 'fa-link' : 'fa-external-link'}`,
+              icon: `${link.target === '_self' ? 'link' : 'external-link-alt'}`,
+              onClick: link.onClick,
             };
           }),
         },
@@ -243,29 +249,34 @@ class GraphElement {
       return;
     } else {
       this.tooltip.clear(this.plot);
-      let linksSupplier: LinkModelSupplier<FieldDisplay>;
+      let linksSupplier: LinkModelSupplier<FieldDisplay> | undefined;
 
       if (item) {
         // pickup y-axis index to know which field's config to apply
         const yAxisConfig = this.panel.yaxes[item.series.yaxis.n === 2 ? 1 : 0];
-        const fieldConfig = {
-          decimals: yAxisConfig.decimals,
-          links: this.panel.options.dataLinks || [],
-        };
         const dataFrame = this.ctrl.dataList[item.series.dataFrameIndex];
         const field = dataFrame.fields[item.series.fieldIndex];
+        const dataIndex = this.getDataIndexWithNullValuesCorrection(item, dataFrame);
 
+        let links: any[] = this.panel.options.dataLinks || [];
+        if (field.config.links && field.config.links.length) {
+          // Append the configured links to the panel datalinks
+          links = [...links, ...field.config.links];
+        }
+        const fieldConfig = {
+          decimals: yAxisConfig.decimals,
+          links,
+        };
         const fieldDisplay = getDisplayProcessor({
-          config: fieldConfig,
+          field: { config: fieldConfig, type: FieldType.number },
           theme: getCurrentTheme(),
-        })(field.values.get(item.dataIndex));
-
-        linksSupplier = this.panel.options.dataLinks
+        })(field.values.get(dataIndex));
+        linksSupplier = links.length
           ? getFieldLinksSupplier({
               display: fieldDisplay,
               name: field.name,
               view: new DataFrameView(dataFrame),
-              rowIndex: item.dataIndex,
+              rowIndex: dataIndex,
               colIndex: item.series.fieldIndex,
               field: fieldConfig,
             })
@@ -280,6 +291,36 @@ class GraphElement {
         this.contextMenu.toggleMenu(pos);
       });
     }
+  }
+
+  getDataIndexWithNullValuesCorrection(item: any, dataFrame: DataFrame): number {
+    /** This is one added to handle the scenario where we have null values in
+     *  the time series data and the: "visualization options -> null value"
+     *  set to "connected". In this scenario we will get the wrong dataIndex.
+     *
+     *  https://github.com/grafana/grafana/issues/22651
+     */
+    const { datapoint, dataIndex } = item;
+
+    if (!Array.isArray(datapoint) || datapoint.length === 0) {
+      return dataIndex;
+    }
+
+    const ts = datapoint[0];
+    const { timeField } = getTimeField(dataFrame);
+
+    if (!timeField || !timeField.values) {
+      return dataIndex;
+    }
+
+    const field = timeField.values.get(dataIndex);
+
+    if (field === ts) {
+      return dataIndex;
+    }
+
+    const correctIndex = timeField.values.toArray().findIndex(value => value === ts);
+    return correctIndex > -1 ? correctIndex : dataIndex;
   }
 
   shouldAbortRender() {
@@ -463,6 +504,7 @@ class GraphElement {
       }
       default: {
         options.series.bars.barWidth = this.getMinTimeStepOfSeries(this.data) / 1.5;
+        options.series.bars.align = 'center';
         this.addTimeAxis(options);
         break;
       }
@@ -474,13 +516,11 @@ class GraphElement {
       this.plot = $.plot(this.elem, this.sortedSeries, options);
       if (this.ctrl.renderError) {
         delete this.ctrl.error;
-        delete this.ctrl.inspector;
       }
     } catch (e) {
       console.log('flotcharts error', e);
       this.ctrl.error = e.message || 'Render Error';
       this.ctrl.renderError = true;
-      this.ctrl.inspector = { error: e };
     }
 
     if (incrementRenderCounter) {
@@ -857,7 +897,7 @@ class GraphElement {
       if (!formatter) {
         throw new Error(`Unit '${format}' is not supported`);
       }
-      return formatter(val, axis.tickDecimals, axis.scaledDecimals);
+      return formattedValueToString(formatter(val, axis.tickDecimals, axis.scaledDecimals));
     };
   }
 

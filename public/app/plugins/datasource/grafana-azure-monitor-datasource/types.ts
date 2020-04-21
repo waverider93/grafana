@@ -1,7 +1,8 @@
-import { DataQuery, DataSourceJsonData } from '@grafana/ui';
+import { DataQuery, DataSourceJsonData, DataSourceSettings } from '@grafana/data';
+
+export type AzureDataSourceSettings = DataSourceSettings<AzureDataSourceJsonData, AzureDataSourceSecureJsonData>;
 
 export interface AzureMonitorQuery extends DataQuery {
-  refId: string;
   format: string;
   subscription: string;
   azureMonitor: AzureMetricQuery;
@@ -21,11 +22,17 @@ export interface AzureDataSourceJsonData extends DataSourceJsonData {
   logAnalyticsSubscriptionId?: string;
   logAnalyticsTenantId?: string;
   logAnalyticsClientId?: string;
-  azureLogAnalyticsSameAs?: string;
+  azureLogAnalyticsSameAs?: boolean;
   logAnalyticsDefaultWorkspace?: string;
 
   // App Insights
   appInsightsAppId?: string;
+}
+
+export interface AzureDataSourceSecureJsonData {
+  clientSecret?: string;
+  logAnalyticsClientSecret?: string;
+  appInsightsApiKey?: string;
 }
 
 export interface AzureMetricQuery {

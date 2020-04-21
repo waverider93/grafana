@@ -6,12 +6,12 @@ import Drop from 'tether-drop';
 
 // Utils and servies
 import { colors } from '@grafana/ui';
-import { setBackendSrv, BackendSrv, setDataSourceSrv } from '@grafana/runtime';
+import { getTemplateSrv, setBackendSrv, setDataSourceSrv } from '@grafana/runtime';
 import config from 'app/core/config';
 import coreModule from 'app/core/core_module';
 import { profiler } from 'app/core/profiler';
 import appEvents from 'app/core/app_events';
-import { TimeSrv, setTimeSrv } from 'app/features/dashboard/services/TimeSrv';
+import { TimeSrv, setTimeSrv, getTimeSrv } from 'app/features/dashboard/services/TimeSrv';
 import { DatasourceSrv } from 'app/features/plugins/datasource_srv';
 import { KeybindingSrv, setKeybindingSrv } from 'app/core/services/keybindingSrv';
 import { AngularLoader, setAngularLoader } from 'app/core/services/AngularLoader';
@@ -27,8 +27,10 @@ import { UtilSrv } from 'app/core/services/util_srv';
 import { ContextSrv } from 'app/core/services/context_srv';
 import { BridgeSrv } from 'app/core/services/bridge_srv';
 import { PlaylistSrv } from 'app/features/playlist/playlist_srv';
+import { DashboardSrv, setDashboardSrv } from 'app/features/dashboard/services/DashboardSrv';
 import { ILocationService, ITimeoutService, IRootScopeService, IAngularEvent } from 'angular';
-import { AppEvent, AppEvents } from '@grafana/data';
+import { AppEvent, AppEvents, locationUtil } from '@grafana/data';
+import { backendSrv } from 'app/core/services/backend_srv';
 
 export type GrafanaRootScope = IRootScopeService & AppEventEmitter & AppEventConsumer & { colors: string[] };
 
@@ -40,11 +42,11 @@ export class GrafanaCtrl {
     $rootScope: GrafanaRootScope,
     contextSrv: ContextSrv,
     bridgeSrv: BridgeSrv,
-    backendSrv: BackendSrv,
     timeSrv: TimeSrv,
     linkSrv: LinkSrv,
     datasourceSrv: DatasourceSrv,
     keybindingSrv: KeybindingSrv,
+    dashboardSrv: DashboardSrv,
     angularLoader: AngularLoader
   ) {
     // make angular loader service available to react components
@@ -54,6 +56,15 @@ export class GrafanaCtrl {
     setTimeSrv(timeSrv);
     setLinkSrv(linkSrv);
     setKeybindingSrv(keybindingSrv);
+    setDashboardSrv(dashboardSrv);
+
+    locationUtil.initialize({
+      getConfig: () => config,
+      getTimeRangeForUrl: getTimeSrv().timeRangeForUrl,
+      // @ts-ignore
+      buildParamsFromVariables: getTemplateSrv().fillVariableValuesForUrl,
+    });
+
     const store = configureStore();
     setLocationSrv({
       update: (opt: LocationUpdate) => {
@@ -141,7 +152,6 @@ export function grafanaAppDirective(
     controller: GrafanaCtrl,
     link: (scope: IRootScopeService & AppEventEmitter, elem: JQuery) => {
       const body = $('body');
-
       // see https://github.com/zenorocha/clipboard.js/issues/155
       $.fn.modal.Constructor.prototype.enforceFocus = () => {};
 
@@ -162,11 +172,6 @@ export function grafanaAppDirective(
       appEvents.on(CoreEvents.playlistStopped, () => {
         elem.toggleClass('view-mode--playlist', false);
       });
-
-      // check if we are in server side render
-      if (document.cookie.indexOf('renderKey') !== -1) {
-        body.addClass('body--phantomjs');
-      }
 
       // tooltip removal fix
       // manage page classes
@@ -290,15 +295,6 @@ export function grafanaAppDirective(
           setTimeout(() => {
             clickAutoHideParent.append(clickAutoHide);
           }, 100);
-        }
-
-        // hide search
-        if (body.find('.search-container').length > 0) {
-          if (target.parents('.search-results-container, .search-field-wrapper').length === 0) {
-            scope.$apply(() => {
-              scope.appEvent(CoreEvents.hideDashSearch);
-            });
-          }
         }
 
         // hide popovers

@@ -28,11 +28,13 @@ const (
 )
 
 var (
-	ErrDataSourceNotFound           = errors.New("Data source not found")
-	ErrDataSourceNameExists         = errors.New("Data source with same name already exists")
-	ErrDataSourceUpdatingOldVersion = errors.New("Trying to update old version of datasource")
-	ErrDatasourceIsReadOnly         = errors.New("Data source is readonly. Can only be updated from configuration")
-	ErrDataSourceAccessDenied       = errors.New("Data source access denied")
+	ErrDataSourceNotFound                = errors.New("Data source not found")
+	ErrDataSourceNameExists              = errors.New("Data source with the same name already exists")
+	ErrDataSourceUidExists               = errors.New("Data source with the same uid already exists")
+	ErrDataSourceUpdatingOldVersion      = errors.New("Trying to update old version of datasource")
+	ErrDatasourceIsReadOnly              = errors.New("Data source is readonly. Can only be updated from configuration")
+	ErrDataSourceAccessDenied            = errors.New("Data source access denied")
+	ErrDataSourceFailedGenerateUniqueUid = errors.New("Failed to generate unique datasource id")
 )
 
 type DsAccess string
@@ -57,6 +59,7 @@ type DataSource struct {
 	JsonData          *simplejson.Json
 	SecureJsonData    securejsondata.SecureJsonData
 	ReadOnly          bool
+	Uid               string
 
 	Created time.Time
 	Updated time.Time
@@ -76,7 +79,7 @@ func (ds *DataSource) DecryptedPassword() string {
 
 // decryptedValue returns decrypted value from secureJsonData
 func (ds *DataSource) decryptedValue(field string, fallback string) string {
-	if value, ok := ds.SecureJsonData.DecryptedValue(field); ok {
+	if value, ok := ds.DecryptedValue(field); ok {
 		return value
 	}
 	return fallback
@@ -144,6 +147,7 @@ type AddDataSourceCommand struct {
 	IsDefault         bool              `json:"isDefault"`
 	JsonData          *simplejson.Json  `json:"jsonData"`
 	SecureJsonData    map[string]string `json:"secureJsonData"`
+	Uid               string            `json:"uid"`
 
 	OrgId    int64 `json:"-"`
 	ReadOnly bool  `json:"-"`
@@ -168,6 +172,7 @@ type UpdateDataSourceCommand struct {
 	JsonData          *simplejson.Json  `json:"jsonData"`
 	SecureJsonData    map[string]string `json:"secureJsonData"`
 	Version           int               `json:"version"`
+	Uid               string            `json:"uid"`
 
 	OrgId    int64 `json:"-"`
 	Id       int64 `json:"-"`

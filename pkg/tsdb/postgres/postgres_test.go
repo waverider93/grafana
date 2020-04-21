@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-xorm/xorm"
 	"github.com/grafana/grafana/pkg/components/securejsondata"
 	"github.com/grafana/grafana/pkg/components/simplejson"
 	"github.com/grafana/grafana/pkg/models"
@@ -16,6 +15,7 @@ import (
 	"github.com/grafana/grafana/pkg/services/sqlstore/sqlutil"
 	"github.com/grafana/grafana/pkg/tsdb"
 	"github.com/grafana/grafana/pkg/tsdb/sqleng"
+	"xorm.io/xorm"
 
 	_ "github.com/lib/pq"
 	. "github.com/smartystreets/goconvey/convey"
@@ -392,7 +392,8 @@ func TestPostgres(t *testing.T) {
 
 			if exist, err := sess.IsTableExist(metric_values{}); err != nil || exist {
 				So(err, ShouldBeNil)
-				sess.DropTable(metric_values{})
+				err = sess.DropTable(metric_values{})
+				So(err, ShouldBeNil)
 			}
 			err := sess.CreateTable(metric_values{})
 			So(err, ShouldBeNil)
@@ -721,7 +722,8 @@ func TestPostgres(t *testing.T) {
 
 			if exist, err := sess.IsTableExist(event{}); err != nil || exist {
 				So(err, ShouldBeNil)
-				sess.DropTable(event{})
+				err = sess.DropTable(event{})
+				So(err, ShouldBeNil)
 			}
 			err := sess.CreateTable(event{})
 			So(err, ShouldBeNil)

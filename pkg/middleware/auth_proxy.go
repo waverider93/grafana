@@ -4,19 +4,13 @@ import (
 	"github.com/grafana/grafana/pkg/infra/log"
 	"github.com/grafana/grafana/pkg/infra/remotecache"
 	authproxy "github.com/grafana/grafana/pkg/middleware/auth_proxy"
-	m "github.com/grafana/grafana/pkg/models"
+	"github.com/grafana/grafana/pkg/models"
 	"github.com/grafana/grafana/pkg/setting"
-)
-
-const (
-
-	// cachePrefix is a prefix for the cache key
-	cachePrefix = authproxy.CachePrefix
 )
 
 var header = setting.AuthProxyHeaderName
 
-func initContextWithAuthProxy(store *remotecache.RemoteCache, ctx *m.ReqContext, orgID int64) bool {
+func initContextWithAuthProxy(store *remotecache.RemoteCache, ctx *models.ReqContext, orgID int64) bool {
 	username := ctx.Req.Header.Get(header)
 	auth := authproxy.New(&authproxy.Options{
 		Store: store,

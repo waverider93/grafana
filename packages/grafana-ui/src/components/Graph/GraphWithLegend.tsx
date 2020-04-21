@@ -72,6 +72,7 @@ export const GraphWithLegend: React.FunctionComponent<GraphWithLegendProps> = (p
     lineWidth,
     onHorizontalRegionSelected,
     timeZone,
+    children,
   } = props;
   const { graphContainer, wrapper, legendContainer } = getGraphWithLegendStyles(props);
 
@@ -81,7 +82,7 @@ export const GraphWithLegend: React.FunctionComponent<GraphWithLegendProps> = (p
       : acc.concat([
           {
             label: s.label,
-            color: s.color,
+            color: s.color || '',
             isVisible: s.isVisible,
             yAxis: s.yAxis.index,
             displayValues: s.info || [],
@@ -93,7 +94,7 @@ export const GraphWithLegend: React.FunctionComponent<GraphWithLegendProps> = (p
     <div className={wrapper}>
       <div className={graphContainer}>
         <Graph
-          series={series.filter(s => !!s.isVisible)}
+          series={series}
           timeRange={timeRange}
           timeZone={timeZone}
           showLines={showLines}
@@ -105,7 +106,9 @@ export const GraphWithLegend: React.FunctionComponent<GraphWithLegendProps> = (p
           isStacked={isStacked}
           lineWidth={lineWidth}
           onHorizontalRegionSelected={onHorizontalRegionSelected}
-        />
+        >
+          {children}
+        </Graph>
       </div>
 
       {isLegendVisible && (

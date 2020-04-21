@@ -1,18 +1,32 @@
 import _ from 'lodash';
-import { Variable, assignModelProperties, variableTypes } from './variable';
+import {
+  AdHocVariableFilter,
+  AdHocVariableModel,
+  assignModelProperties,
+  VariableActions,
+  VariableHide,
+  variableTypes,
+} from './types';
 
-export class AdhocVariable implements Variable {
-  filters: any[];
+import { VariableType } from '@grafana/data';
+
+export class AdhocVariable implements AdHocVariableModel, VariableActions {
+  type: VariableType;
+  name: string;
+  label: string;
+  hide: VariableHide;
   skipUrlSync: boolean;
+  filters: AdHocVariableFilter[];
+  datasource: string;
 
-  defaults: any = {
+  defaults: AdHocVariableModel = {
     type: 'adhoc',
     name: '',
     label: '',
-    hide: 0,
+    hide: VariableHide.dontHide,
+    skipUrlSync: false,
     datasource: null,
     filters: [],
-    skipUrlSync: false,
   };
 
   /** @ngInject */
@@ -50,6 +64,7 @@ export class AdhocVariable implements Variable {
         key: values[0],
         operator: values[1],
         value: values[2],
+        condition: '',
       };
     });
 

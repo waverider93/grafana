@@ -5,7 +5,7 @@ const defaultSuccessNotification = {
   title: '',
   text: '',
   severity: AppNotificationSeverity.Success,
-  icon: 'fa fa-check',
+  icon: 'check',
   timeout: AppNotificationTimeout.Success,
 };
 
@@ -13,7 +13,7 @@ const defaultWarningNotification = {
   title: '',
   text: '',
   severity: AppNotificationSeverity.Warning,
-  icon: 'fa fa-exclamation',
+  icon: 'exclamation-triangle',
   timeout: AppNotificationTimeout.Warning,
 };
 
@@ -21,7 +21,7 @@ const defaultErrorNotification = {
   title: '',
   text: '',
   severity: AppNotificationSeverity.Error,
-  icon: 'fa fa-exclamation-triangle',
+  icon: 'exclamation-triangle',
   timeout: AppNotificationTimeout.Error,
 };
 
@@ -32,12 +32,13 @@ export const createSuccessNotification = (title: string, text = ''): AppNotifica
   id: Date.now(),
 });
 
-export const createErrorNotification = (title: string, text = ''): AppNotification => {
+export const createErrorNotification = (title: string, text = '', component?: React.ReactElement): AppNotification => {
   return {
     ...defaultErrorNotification,
-    title: title,
     text: getMessageFromError(text),
+    title,
     id: Date.now(),
+    component,
   };
 };
 

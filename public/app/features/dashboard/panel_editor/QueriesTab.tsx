@@ -1,34 +1,26 @@
 // Libraries
 import React, { PureComponent } from 'react';
 import _ from 'lodash';
-import { css } from 'emotion';
 // Components
 import { EditorTabBody, EditorToolbarView } from './EditorTabBody';
 import { DataSourcePicker } from 'app/core/components/Select/DataSourcePicker';
-import { QueryInspector } from './QueryInspector';
 import { QueryOptions } from './QueryOptions';
-import {
-  PanelOptionsGroup,
-  TransformationsEditor,
-  DataQuery,
-  DataSourceSelectItem,
-  PanelData,
-  AlphaNotice,
-  PluginState,
-} from '@grafana/ui';
+import { PanelOptionsGroup } from '@grafana/ui';
+import { getLocationSrv } from '@grafana/runtime';
 import { QueryEditorRows } from './QueryEditorRows';
 // Services
 import { getDatasourceSrv } from 'app/features/plugins/datasource_srv';
-import { getBackendSrv } from 'app/core/services/backend_srv';
+import { backendSrv } from 'app/core/services/backend_srv';
 import config from 'app/core/config';
 // Types
 import { PanelModel } from '../state/PanelModel';
 import { DashboardModel } from '../state/DashboardModel';
-import { LoadingState, DataTransformerConfig, DefaultTimeRange } from '@grafana/data';
+import { LoadingState, DefaultTimeRange, DataSourceSelectItem, DataQuery, PanelData } from '@grafana/data';
 import { PluginHelp } from 'app/core/components/PluginHelp/PluginHelp';
 import { addQuery } from 'app/core/utils/query';
 import { Unsubscribable } from 'rxjs';
 import { isSharedDashboardQuery, DashboardQueryEditor } from 'app/plugins/datasource/dashboard';
+import { expressionDatasource, ExpressionDatasourceID } from 'app/features/expressions/ExpressionDatasource';
 
 interface Props {
   panel: PanelModel;
@@ -47,7 +39,7 @@ interface State {
 
 export class QueriesTab extends PureComponent<Props, State> {
   datasources: DataSourceSelectItem[] = getDatasourceSrv().getMetricSources();
-  backendSrv = getBackendSrv();
+  backendSrv = backendSrv;
   querySubscription: Unsubscribable;
 
   state: State = {
@@ -97,9 +89,11 @@ export class QueriesTab extends PureComponent<Props, State> {
     if (datasource.meta.mixed) {
       // Set the datasource on all targets
       panel.targets.forEach(target => {
-        target.datasource = panel.datasource;
-        if (!target.datasource) {
-          target.datasource = config.defaultDatasource;
+        if (target.datasource !== ExpressionDatasourceID) {
+          target.datasource = panel.datasource;
+          if (!target.datasource) {
+            target.datasource = config.defaultDatasource;
+          }
         }
       });
     } else if (currentDS) {
@@ -107,7 +101,9 @@ export class QueriesTab extends PureComponent<Props, State> {
       if (currentDS.meta.mixed) {
         // Remove the explicit datasource
         for (const target of panel.targets) {
-          delete target.datasource;
+          if (target.datasource !== ExpressionDatasourceID) {
+            delete target.datasource;
+          }
         }
       } else if (currentDS.meta.id !== datasource.meta.id) {
         // we are changing data source type, clear queries
@@ -123,9 +119,12 @@ export class QueriesTab extends PureComponent<Props, State> {
     });
   };
 
-  renderQueryInspector = () => {
+  openQueryInspector = () => {
     const { panel } = this.props;
-    return <QueryInspector panel={panel} />;
+    getLocationSrv().update({
+      query: { inspect: panel.id, inspectTab: 'query' },
+      partial: true,
+    });
   };
 
   renderHelp = () => {
@@ -150,6 +149,11 @@ export class QueriesTab extends PureComponent<Props, State> {
     this.onScrollBottom();
   };
 
+  onAddExpressionClick = () => {
+    this.onUpdateQueries(addQuery(this.props.panel.targets, expressionDatasource.newQuery()));
+    this.onScrollBottom();
+  };
+
   onScrollBottom = () => {
     this.setState({ scrollTop: this.state.scrollTop + 10000 });
   };
@@ -164,18 +168,27 @@ export class QueriesTab extends PureComponent<Props, State> {
         <div className="flex-grow-1" />
         {showAddButton && (
           <button className="btn navbar-button" onClick={this.onAddQueryClick}>
-            Add Query
+            Add query
           </button>
         )}
         {isAddingMixed && this.renderMixedPicker()}
+        {config.featureToggles.expressions && (
+          <button className="btn navbar-button" onClick={this.onAddExpressionClick}>
+            Add Expression
+          </button>
+        )}
       </>
     );
   };
 
   renderMixedPicker = () => {
+    // We cannot filter on mixed flag as some mixed data sources like external plugin
+    // meta queries data source is mixed but also supports it's own queries
+    const filteredDsList = this.datasources.filter(ds => ds.meta.id !== 'mixed');
+
     return (
       <DataSourcePicker
-        datasources={this.datasources.filter(ds => !ds.meta.mixed)}
+        datasources={filteredDsList}
         onChange={this.onAddMixedQuery}
         current={null}
         autoFocus={true}
@@ -197,11 +210,6 @@ export class QueriesTab extends PureComponent<Props, State> {
 
   onQueryChange = (query: DataQuery, index: number) => {
     this.props.panel.changeQuery(query, index);
-    this.forceUpdate();
-  };
-
-  onTransformersChange = (transformers: DataTransformerConfig[]) => {
-    this.props.panel.setTransformations(transformers);
     this.forceUpdate();
   };
 
@@ -237,55 +245,27 @@ export class QueriesTab extends PureComponent<Props, State> {
   };
 
   render() {
-    const { scrollTop, data } = this.state;
+    const { scrollTop } = this.state;
     const queryInspector: EditorToolbarView = {
-      title: 'Query Inspector',
-      render: this.renderQueryInspector,
+      title: 'Query inspector',
+      onClick: this.openQueryInspector,
     };
 
     const dsHelp: EditorToolbarView = {
       heading: 'Help',
-      icon: 'fa fa-question',
+      icon: 'question-circle',
       render: this.renderHelp,
     };
 
-    const enableTransformations = config.featureToggles.transformations;
-
     return (
       <EditorTabBody
-        heading="Query"
+        heading="Data source"
         renderToolbar={this.renderToolbar}
         toolbarItems={[queryInspector, dsHelp]}
         setScrollTop={this.setScrollTop}
         scrollTop={scrollTop}
       >
-        <>
-          {this.renderQueryBody()}
-
-          {enableTransformations && (
-            <PanelOptionsGroup
-              title={
-                <>
-                  Query results
-                  <AlphaNotice
-                    state={PluginState.alpha}
-                    className={css`
-                      margin-left: 16px;
-                    `}
-                  />
-                </>
-              }
-            >
-              {this.state.data.state !== LoadingState.NotStarted && (
-                <TransformationsEditor
-                  transformations={this.props.panel.transformations || []}
-                  onChange={this.onTransformersChange}
-                  dataFrames={data.series}
-                />
-              )}
-            </PanelOptionsGroup>
-          )}
-        </>
+        <>{this.renderQueryBody()}</>
       </EditorTabBody>
     );
   }

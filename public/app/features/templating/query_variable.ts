@@ -1,55 +1,71 @@
 import _ from 'lodash';
-import { assignModelProperties, containsVariable, Variable, variableTypes } from './variable';
-import { stringToJsRegex } from '@grafana/data';
+import {
+  assignModelProperties,
+  QueryVariableModel,
+  VariableActions,
+  VariableHide,
+  VariableOption,
+  VariableRefresh,
+  VariableSort,
+  VariableTag,
+  variableTypes,
+} from './types';
+import { VariableType, DataSourceApi, stringToJsRegex } from '@grafana/data';
 import DatasourceSrv from '../plugins/datasource_srv';
 import { TemplateSrv } from './template_srv';
 import { VariableSrv } from './variable_srv';
 import { TimeSrv } from '../dashboard/services/TimeSrv';
+import { containsVariable } from './utils';
 
-function getNoneOption() {
-  return { text: 'None', value: '', isNone: true };
+function getNoneOption(): VariableOption {
+  return { text: 'None', value: '', isNone: true, selected: false };
 }
 
-export class QueryVariable implements Variable {
-  datasource: any;
-  query: any;
-  regex: any;
-  sort: any;
-  options: any;
-  current: any;
-  refresh: number;
-  hide: number;
+export class QueryVariable implements QueryVariableModel, VariableActions {
+  type: VariableType;
   name: string;
+  label: string | null;
+  hide: VariableHide;
+  skipUrlSync: boolean;
+  datasource: string | null;
+  query: string;
+  regex: string;
+  sort: VariableSort;
+  options: VariableOption[];
+  current: VariableOption;
+  refresh: VariableRefresh;
   multi: boolean;
   includeAll: boolean;
   useTags: boolean;
   tagsQuery: string;
   tagValuesQuery: string;
-  tags: any[];
-  skipUrlSync: boolean;
+  tags: VariableTag[];
   definition: string;
+  allValue: string;
+  index: number;
 
-  defaults: any = {
+  defaults: QueryVariableModel = {
     type: 'query',
+    name: '',
     label: null,
+    hide: VariableHide.dontHide,
+    skipUrlSync: false,
+    datasource: null,
     query: '',
     regex: '',
-    sort: 0,
-    datasource: null,
-    refresh: 0,
-    hide: 0,
-    name: '',
+    sort: VariableSort.disabled,
+    refresh: VariableRefresh.never,
     multi: false,
     includeAll: false,
     allValue: null,
     options: [],
-    current: {},
+    current: {} as VariableOption,
     tags: [],
     useTags: false,
     tagsQuery: '',
     tagValuesQuery: '',
-    skipUrlSync: false,
     definition: '',
+    index: -1,
   };
 
   /** @ngInject */
@@ -94,8 +110,8 @@ export class QueryVariable implements Variable {
 
   updateOptions(searchFilter?: string) {
     return this.datasourceSrv
-      .get(this.datasource)
-      .then(ds => this.updateOptionsFromMetricFindQuery(ds, searchFilter))
+      .get(this.datasource ?? '')
+      .then((ds: DataSourceApi) => this.updateOptionsFromMetricFindQuery(ds, searchFilter))
       .then(this.updateTags.bind(this))
       .then(this.variableSrv.validateVariableSelectionState.bind(this.variableSrv, this));
   }
@@ -117,7 +133,7 @@ export class QueryVariable implements Variable {
   }
 
   getValuesForTag(tagKey: string) {
-    return this.datasourceSrv.get(this.datasource).then(datasource => {
+    return this.datasourceSrv.get(this.datasource ?? '').then((datasource: DataSourceApi) => {
       const query = this.tagValuesQuery.replace('$tag', tagKey);
       return this.metricFindQuery(datasource, query).then((results: any) => {
         return _.map(results, value => {
@@ -151,7 +167,7 @@ export class QueryVariable implements Variable {
   }
 
   addAllOption() {
-    this.options.unshift({ text: 'All', value: '$__all' });
+    this.options.unshift({ text: 'All', value: '$__all', selected: false });
   }
 
   metricNamesToVariableValues(metricNames: any[]) {

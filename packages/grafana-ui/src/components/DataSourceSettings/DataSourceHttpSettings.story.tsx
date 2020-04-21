@@ -1,7 +1,7 @@
 import React from 'react';
 import { storiesOf } from '@storybook/react';
 import { DataSourceHttpSettings } from './DataSourceHttpSettings';
-import { DataSourceSettings } from '../../types';
+import { DataSourceSettings } from '@grafana/data';
 import { UseState } from '../../utils/storybook/UseState';
 
 const settingsMock: DataSourceSettings<any, any> = {
@@ -31,7 +31,7 @@ const settingsMock: DataSourceSettings<any, any> = {
   readOnly: true,
 };
 
-const DataSourceHttpSettingsStories = storiesOf('UI/DataSource/DataSourceHttpSettings', module);
+const DataSourceHttpSettingsStories = storiesOf('Data Source/DataSourceHttpSettings', module);
 
 DataSourceHttpSettingsStories.add('default', () => {
   return (

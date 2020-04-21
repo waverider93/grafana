@@ -27,7 +27,7 @@ These settings apply to all Panels in the Dashboard (except those with Panel Tim
 
 The following time units are supported: `s (seconds)`, `m (minutes)`, `h (hours)`, `d (days)`, `w (weeks)`, `M (months)`, `y (years)`. The minus operator allows you to step back in time, relative to now. If you wish to display the full period of the unit (day, week, month, etc...), append `/$unit` to the end.
 
-Take a look at some examples to seen these concepts in practice:
+Take a look at some examples to see these concepts in practice:
 
 Example Relative Range | From: | To:
 -------------- | ----- | ---
@@ -70,3 +70,10 @@ The `Hide time override info` option allows you to hide the override info text t
 upper right of a panel when overridden time range options.
 
 **Note:** You can only override the dashboard time with relative time ranges. Absolute time ranges are not available.
+
+## Controlling time range using URL
+Time range of a dashboard can be controlled by providing following query parameters in dashboard URL:
+
+- `from` - defines lower limit of the time range, specified in ms epoch
+- `to` - defines upper limit of the time range, specified in ms epoch
+- `time` and `time.window` - defines a time range from `time-time.window/2` to `time+time.window/2`. Both params should be specified in ms. For example `?time=1500000000000&time.window=10000` will result in 10s time range from 1499999995000 to 1500000005000

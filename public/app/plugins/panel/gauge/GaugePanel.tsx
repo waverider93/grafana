@@ -5,31 +5,29 @@ import React, { PureComponent } from 'react';
 import { config } from 'app/core/config';
 
 // Components
-import { Gauge, FieldDisplay, getFieldDisplayValues, VizOrientation, DataLinksContextMenu } from '@grafana/ui';
+import { Gauge, DataLinksContextMenu, VizRepeater, VizRepeaterRenderValueProps } from '@grafana/ui';
 
 // Types
 import { GaugeOptions } from './types';
-import { PanelProps, VizRepeater } from '@grafana/ui';
-import { getFieldLinksSupplier } from 'app/features/panel/panellinks/linkSuppliers';
+import { FieldDisplay, getFieldDisplayValues, VizOrientation, PanelProps } from '@grafana/data';
 
 export class GaugePanel extends PureComponent<PanelProps<GaugeOptions>> {
-  renderValue = (value: FieldDisplay, width: number, height: number): JSX.Element => {
+  renderValue = (valueProps: VizRepeaterRenderValueProps<FieldDisplay>): JSX.Element => {
     const { options } = this.props;
+    const { value, width, height } = valueProps;
     const { field, display } = value;
 
     return (
-      <DataLinksContextMenu links={getFieldLinksSupplier(value)}>
+      <DataLinksContextMenu links={value.getLinks}>
         {({ openMenu, targetClassName }) => {
           return (
             <Gauge
               value={display}
               width={width}
               height={height}
-              thresholds={field.thresholds}
+              field={field}
               showThresholdLabels={options.showThresholdLabels}
               showThresholdMarkers={options.showThresholdMarkers}
-              minValue={field.min}
-              maxValue={field.max}
               theme={config.theme}
               onClick={openMenu}
               className={targetClassName}
@@ -41,12 +39,14 @@ export class GaugePanel extends PureComponent<PanelProps<GaugeOptions>> {
   };
 
   getValues = (): FieldDisplay[] => {
-    const { data, options, replaceVariables } = this.props;
+    const { data, options, replaceVariables, fieldConfig } = this.props;
     return getFieldDisplayValues({
-      fieldOptions: options.fieldOptions,
+      fieldConfig,
+      reduceOptions: options.reduceOptions,
       replaceVariables,
       theme: config.theme,
       data: data.series,
+      autoMinMax: true,
     });
   };
 
@@ -59,6 +59,7 @@ export class GaugePanel extends PureComponent<PanelProps<GaugeOptions>> {
         width={width}
         height={height}
         source={data}
+        autoGrid={true}
         renderCounter={renderCounter}
         orientation={VizOrientation.Auto}
       />

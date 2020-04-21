@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-xorm/xorm"
 	"github.com/grafana/grafana/pkg/components/securejsondata"
 	"github.com/grafana/grafana/pkg/components/simplejson"
 	"github.com/grafana/grafana/pkg/models"
@@ -16,6 +15,7 @@ import (
 	"github.com/grafana/grafana/pkg/tsdb"
 	"github.com/grafana/grafana/pkg/tsdb/sqleng"
 	. "github.com/smartystreets/goconvey/convey"
+	"xorm.io/xorm"
 )
 
 // To run this test, remove the Skip from SkipConvey
@@ -382,7 +382,8 @@ func TestMSSQL(t *testing.T) {
 
 			if exist, err := sess.IsTableExist(metric_values{}); err != nil || exist {
 				So(err, ShouldBeNil)
-				sess.DropTable(metric_values{})
+				err = sess.DropTable(metric_values{})
+				So(err, ShouldBeNil)
 			}
 			err := sess.CreateTable(metric_values{})
 			So(err, ShouldBeNil)

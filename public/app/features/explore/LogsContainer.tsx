@@ -1,40 +1,48 @@
 import React, { PureComponent } from 'react';
 import { hot } from 'react-hot-loader';
 import { connect } from 'react-redux';
-import { DataSourceApi, Collapse } from '@grafana/ui';
+import { Collapse } from '@grafana/ui';
 
 import {
+  DataSourceApi,
   RawTimeRange,
   LogLevel,
   TimeZone,
   AbsoluteTimeRange,
-  LogsModel,
   LogRowModel,
   LogsDedupStrategy,
   TimeRange,
+  LogsMetaItem,
+  GraphSeriesXY,
+  Field,
 } from '@grafana/data';
 
 import { ExploreId, ExploreItemState } from 'app/types/explore';
 import { StoreState } from 'app/types';
 
-import { changeDedupStrategy, updateTimeRange } from './state/actions';
+import { changeDedupStrategy, updateTimeRange, splitOpen } from './state/actions';
 import { toggleLogLevelAction } from 'app/features/explore/state/actionTypes';
-import { deduplicatedLogsSelector, exploreItemUIStateSelector } from 'app/features/explore/state/selectors';
+import { deduplicatedRowsSelector } from 'app/features/explore/state/selectors';
 import { getTimeZone } from '../profile/state/selectors';
 import { LiveLogsWithTheme } from './LiveLogs';
 import { Logs } from './Logs';
 import { LogsCrossFadeTransition } from './utils/LogsCrossFadeTransition';
 import { LiveTailControls } from './useLiveTailControls';
+import { getLinksFromLogsField } from '../panel/panellinks/linkSuppliers';
 
 interface LogsContainerProps {
-  datasourceInstance: DataSourceApi | null;
+  datasourceInstance?: DataSourceApi;
   exploreId: ExploreId;
   loading: boolean;
 
   logsHighlighterExpressions?: string[];
-  logsResult?: LogsModel;
-  dedupedResult?: LogsModel;
-  onClickLabel: (key: string, value: string) => void;
+  logRows?: LogRowModel[];
+  logsMeta?: LogsMetaItem[];
+  logsSeries?: GraphSeriesXY[];
+  dedupedRows?: LogRowModel[];
+
+  onClickFilterLabel?: (key: string, value: string) => void;
+  onClickFilterOutLabel?: (key: string, value: string) => void;
   onStartScanning: () => void;
   onStopScanning: () => void;
   timeZone: TimeZone;
@@ -50,6 +58,7 @@ interface LogsContainerProps {
   syncedTimes: boolean;
   absoluteRange: AbsoluteTimeRange;
   isPaused: boolean;
+  splitOpen: typeof splitOpen;
 }
 
 export class LogsContainer extends PureComponent<LogsContainerProps> {
@@ -73,20 +82,47 @@ export class LogsContainer extends PureComponent<LogsContainerProps> {
   getLogRowContext = async (row: LogRowModel, options?: any): Promise<any> => {
     const { datasourceInstance } = this.props;
 
-    if (datasourceInstance) {
+    if (datasourceInstance?.getLogRowContext) {
       return datasourceInstance.getLogRowContext(row, options);
     }
 
     return [];
   };
 
+  /**
+   * Get links from the filed of a dataframe that was given to as and in addition check if there is associated
+   * metadata with datasource in which case we will add onClick to open the link in new split window. This assumes
+   * that we just supply datasource name and field value and Explore split window will know how to render that
+   * appropriately. This is for example used for transition from log with traceId to trace datasource to show that
+   * trace.
+   * @param field
+   * @param rowIndex
+   */
+  getFieldLinks = (field: Field, rowIndex: number) => {
+    const data = getLinksFromLogsField(field, rowIndex);
+    return data.map(d => {
+      if (d.link.meta?.datasourceUid) {
+        return {
+          ...d.linkModel,
+          onClick: () => {
+            this.props.splitOpen({ dataSourceUid: d.link.meta.datasourceUid, query: field.values.get(rowIndex) });
+          },
+        };
+      }
+      return d.linkModel;
+    });
+  };
+
   render() {
     const {
       loading,
       logsHighlighterExpressions,
-      logsResult,
-      dedupedResult,
-      onClickLabel,
+      logRows,
+      logsMeta,
+      logsSeries,
+      dedupedRows,
+      onClickFilterLabel,
+      onClickFilterOutLabel,
       onStartScanning,
       onStopScanning,
       absoluteRange,
@@ -105,7 +141,7 @@ export class LogsContainer extends PureComponent<LogsContainerProps> {
             <LiveTailControls exploreId={exploreId}>
               {controls => (
                 <LiveLogsWithTheme
-                  logsResult={logsResult}
+                  logRows={logRows}
                   timeZone={timeZone}
                   stopLive={controls.stop}
                   isPaused={this.props.isPaused}
@@ -120,12 +156,15 @@ export class LogsContainer extends PureComponent<LogsContainerProps> {
           <Collapse label="Logs" loading={loading} isOpen>
             <Logs
               dedupStrategy={this.props.dedupStrategy || LogsDedupStrategy.none}
-              data={logsResult}
-              dedupedData={dedupedResult}
+              logRows={logRows}
+              logsMeta={logsMeta}
+              logsSeries={logsSeries}
+              dedupedRows={dedupedRows}
               highlighterExpressions={logsHighlighterExpressions}
               loading={loading}
               onChangeTime={this.onChangeTime}
-              onClickLabel={onClickLabel}
+              onClickFilterLabel={onClickFilterLabel}
+              onClickFilterOutLabel={onClickFilterOutLabel}
               onStartScanning={onStartScanning}
               onStopScanning={onStopScanning}
               onDedupStrategyChange={this.handleDedupStrategyChange}
@@ -136,6 +175,7 @@ export class LogsContainer extends PureComponent<LogsContainerProps> {
               scanRange={range.raw}
               width={width}
               getRowContext={this.getLogRowContext}
+              getFieldLinks={this.getFieldLinks}
             />
           </Collapse>
         </LogsCrossFadeTransition>
@@ -158,19 +198,21 @@ function mapStateToProps(state: StoreState, { exploreId }: { exploreId: string }
     isPaused,
     range,
     absoluteRange,
+    dedupStrategy,
   } = item;
-  const { dedupStrategy } = exploreItemUIStateSelector(item);
-  const dedupedResult = deduplicatedLogsSelector(item);
+  const dedupedRows = deduplicatedRowsSelector(item);
   const timeZone = getTimeZone(state.user);
 
   return {
     loading,
     logsHighlighterExpressions,
-    logsResult,
+    logRows: logsResult && logsResult.rows,
+    logsMeta: logsResult && logsResult.meta,
+    logsSeries: logsResult && logsResult.series,
     scanning,
     timeZone,
     dedupStrategy,
-    dedupedResult,
+    dedupedRows,
     datasourceInstance,
     isLive,
     isPaused,
@@ -183,11 +225,7 @@ const mapDispatchToProps = {
   changeDedupStrategy,
   toggleLogLevelAction,
   updateTimeRange,
+  splitOpen,
 };
 
-export default hot(module)(
-  connect(
-    mapStateToProps,
-    mapDispatchToProps
-  )(LogsContainer)
-);
+export default hot(module)(connect(mapStateToProps, mapDispatchToProps)(LogsContainer));

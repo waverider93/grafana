@@ -16,19 +16,18 @@ import {
   LinkModel,
   reduceField,
   ReducerID,
-} from '@grafana/data';
-
-import {
   LegacyResponseData,
   getFlotPairs,
   getDisplayProcessor,
-  convertOldAngulrValueMapping,
   getColorFromHexRgbOrName,
   PanelEvents,
-} from '@grafana/ui';
+  formattedValueToString,
+  locationUtil,
+} from '@grafana/data';
+
+import { convertOldAngularValueMapping } from '@grafana/ui';
 
 import { CoreEvents } from 'app/types';
-import kbn from 'app/core/utils/kbn';
 import config from 'app/core/config';
 import { MetricsPanelCtrl } from 'app/plugins/sdk';
 import { LinkSrv } from 'app/features/panel/panellinks/link_srv';
@@ -54,7 +53,6 @@ class SingleStatCtrl extends MetricsPanelCtrl {
   data: Partial<ShowData> = {};
 
   fontSizes: any[];
-  unitFormats: any[];
   fieldNames: string[] = [];
 
   invalidGaugeRange: boolean;
@@ -87,7 +85,10 @@ class SingleStatCtrl extends MetricsPanelCtrl {
     postfix: '',
     nullText: null,
     valueMaps: [{ value: 'null', op: '=', text: 'N/A' }],
-    mappingTypes: [{ name: 'value to text', value: 1 }, { name: 'range to text', value: 2 }],
+    mappingTypes: [
+      { name: 'value to text', value: 1 },
+      { name: 'range to text', value: 2 },
+    ],
     rangeMaps: [{ from: 'null', to: 'null', text: 'N/A' }],
     mappingType: 1,
     nullPointMode: 'connected',
@@ -123,7 +124,6 @@ class SingleStatCtrl extends MetricsPanelCtrl {
     _.defaults(this.panel, this.panelDefaults);
 
     this.events.on(CoreEvents.dataFramesReceived, this.onFramesReceived.bind(this));
-    this.events.on(PanelEvents.dataError, this.onDataError.bind(this));
     this.events.on(PanelEvents.dataSnapshotLoad, this.onSnapshotLoad.bind(this));
     this.events.on(PanelEvents.editModeInitialized, this.onInitEditMode.bind(this));
 
@@ -137,7 +137,6 @@ class SingleStatCtrl extends MetricsPanelCtrl {
     this.fontSizes = ['20%', '30%', '50%', '70%', '80%', '100%', '110%', '120%', '150%', '170%', '200%'];
     this.addEditorTab('Options', 'public/app/plugins/panel/singlestat/editor.html', 2);
     this.addEditorTab('Value Mappings', 'public/app/plugins/panel/singlestat/mappings.html', 3);
-    this.unitFormats = kbn.getUnitFormats();
   }
 
   migrateToGaugePanel(migrate: boolean) {
@@ -149,13 +148,11 @@ class SingleStatCtrl extends MetricsPanelCtrl {
     }
   }
 
-  setUnitFormat(subItem: { value: any }) {
-    this.panel.format = subItem.value;
-    this.refresh();
-  }
-
-  onDataError(err: any) {
-    this.handleDataFrames([]);
+  setUnitFormat() {
+    return (unit: string) => {
+      this.panel.format = unit;
+      this.refresh();
+    };
   }
 
   onSnapshotLoad(dataList: LegacyResponseData[]) {
@@ -178,7 +175,8 @@ class SingleStatCtrl extends MetricsPanelCtrl {
     }
 
     const distinct = getDistinctNames(frames);
-    let fieldInfo = distinct.byName[panel.tableColumn]; //
+    let fieldInfo: FieldInfo | undefined = distinct.byName[panel.tableColumn];
+
     this.fieldNames = distinct.names;
 
     if (!fieldInfo) {
@@ -186,13 +184,19 @@ class SingleStatCtrl extends MetricsPanelCtrl {
     }
 
     if (!fieldInfo) {
+      const processor = getDisplayProcessor({
+        field: {
+          config: {
+            mappings: convertOldAngularValueMapping(this.panel),
+            noValue: 'No Data',
+          },
+        },
+        theme: config.theme,
+      });
       // When we don't have any field
       this.data = {
-        value: 'No Data',
-        display: {
-          text: 'No Data',
-          numeric: NaN,
-        },
+        value: null,
+        display: processor(null),
       };
     } else {
       this.data = this.processField(fieldInfo);
@@ -242,14 +246,17 @@ class SingleStatCtrl extends MetricsPanelCtrl {
     }
 
     const processor = getDisplayProcessor({
-      config: {
-        ...fieldInfo.field.config,
-        unit: panel.format,
-        decimals: panel.decimals,
-        mappings: convertOldAngulrValueMapping(panel),
+      field: {
+        ...fieldInfo.field,
+        config: {
+          ...fieldInfo.field.config,
+          unit: panel.format,
+          decimals: panel.decimals,
+          mappings: convertOldAngularValueMapping(panel),
+        },
       },
       theme: config.theme,
-      isUtc: dashboard.isTimezoneUtc && dashboard.isTimezoneUtc(),
+      timeZone: dashboard.getTimezone(),
     });
 
     const sparkline: any[] = [];
@@ -343,8 +350,11 @@ class SingleStatCtrl extends MetricsPanelCtrl {
     const panel = ctrl.panel;
     const templateSrv = this.templateSrv;
     let linkInfo: LinkModel<any> | null = null;
-    const $panelContainer = elem.find('.panel-container');
     elem = elem.find('.singlestat-panel');
+
+    function getPanelContainer() {
+      return elem.closest('.panel-container');
+    }
 
     function applyColoringThresholds(valueString: string) {
       const data = ctrl.data;
@@ -371,7 +381,12 @@ class SingleStatCtrl extends MetricsPanelCtrl {
         body += getSpan('singlestat-panel-prefix', panel.prefixFontSize, panel.colorPrefix, panel.prefix);
       }
 
-      body += getSpan('singlestat-panel-value', panel.valueFontSize, panel.colorValue, data.display.text);
+      body += getSpan(
+        'singlestat-panel-value',
+        panel.valueFontSize,
+        panel.colorValue,
+        formattedValueToString(data.display)
+      );
 
       if (panel.postfix) {
         body += getSpan('singlestat-panel-postfix', panel.postfixFontSize, panel.colorPostfix, panel.postfix);
@@ -385,7 +400,7 @@ class SingleStatCtrl extends MetricsPanelCtrl {
     function getValueText() {
       const data: ShowData = ctrl.data;
       let result = panel.prefix ? templateSrv.replace(panel.prefix, data.scopedVars) : '';
-      result += data.display.text;
+      result += formattedValueToString(data.display);
       result += panel.postfix ? templateSrv.replace(panel.postfix, data.scopedVars) : '';
 
       return result;
@@ -578,18 +593,18 @@ class SingleStatCtrl extends MetricsPanelCtrl {
       if (panel.colorBackground) {
         const color = getColorForValue(data, data.display.numeric);
         if (color) {
-          $panelContainer.css('background-color', color);
+          getPanelContainer().css('background-color', color);
           if (scope.fullscreen) {
             elem.css('background-color', color);
           } else {
             elem.css('background-color', '');
           }
         } else {
-          $panelContainer.css('background-color', '');
+          getPanelContainer().css('background-color', '');
           elem.css('background-color', '');
         }
       } else {
-        $panelContainer.css('background-color', '');
+        getPanelContainer().css('background-color', '');
         elem.css('background-color', '');
       }
 
@@ -643,7 +658,7 @@ class SingleStatCtrl extends MetricsPanelCtrl {
           window.location.href = linkInfo.href;
         } else {
           $timeout(() => {
-            $location.url(linkInfo.href);
+            $location.url(locationUtil.stripBaseFromUrl(linkInfo!.href));
           });
         }
 
@@ -685,7 +700,7 @@ function getColorForValue(data: any, value: number) {
 
 //------------------------------------------------
 // Private utility functions
-// Somethign like this should be avaliable in a
+// Something like this should be available in a
 //  DataFrame[] abstraction helper
 //------------------------------------------------
 

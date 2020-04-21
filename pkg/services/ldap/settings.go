@@ -2,13 +2,14 @@ package ldap
 
 import (
 	"fmt"
+	"io/ioutil"
 	"sync"
 
 	"github.com/BurntSushi/toml"
 	"golang.org/x/xerrors"
 
 	"github.com/grafana/grafana/pkg/infra/log"
-	m "github.com/grafana/grafana/pkg/models"
+	"github.com/grafana/grafana/pkg/models"
 	"github.com/grafana/grafana/pkg/setting"
 	"github.com/grafana/grafana/pkg/util/errutil"
 )
@@ -60,7 +61,7 @@ type GroupToOrgRole struct {
 	// This pointer specifies if setting was set (for backwards compatibility)
 	IsGrafanaAdmin *bool `toml:"grafana_admin"`
 
-	OrgRole m.RoleType `toml:"org_role"`
+	OrgRole models.RoleType `toml:"org_role"`
 }
 
 // logger for all LDAP stuff
@@ -118,7 +119,15 @@ func readConfig(configFile string) (*Config, error) {
 
 	logger.Info("LDAP enabled, reading config file", "file", configFile)
 
-	_, err := toml.DecodeFile(configFile, result)
+	fileBytes, err := ioutil.ReadFile(configFile)
+	if err != nil {
+		return nil, errutil.Wrap("Failed to load LDAP config file", err)
+	}
+
+	// interpolate full toml string (it can contain ENV variables)
+	stringContent := setting.EvalEnvVarExpression(string(fileBytes))
+
+	_, err = toml.Decode(stringContent, result)
 	if err != nil {
 		return nil, errutil.Wrap("Failed to load LDAP config file", err)
 	}

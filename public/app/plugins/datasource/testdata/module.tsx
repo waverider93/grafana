@@ -1,4 +1,4 @@
-import { DataSourcePlugin } from '@grafana/ui';
+import { DataSourcePlugin } from '@grafana/data';
 import { TestDataDataSource } from './datasource';
 import { TestDataQueryCtrl } from './query_ctrl';
 import { TestInfoTab } from './TestInfoTab';
@@ -16,7 +16,7 @@ export const plugin = new DataSourcePlugin(TestDataDataSource)
   .setAnnotationQueryCtrl(TestDataAnnotationsQueryCtrl)
   .addConfigPage({
     title: 'Setup',
-    icon: 'fa fa-list-alt',
+    icon: 'list-ul',
     body: TestInfoTab,
     id: 'setup',
   });

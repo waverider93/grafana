@@ -14,6 +14,9 @@ exports[`Render should render component 1`] = `
         Email
       </th>
       <th>
+        Name
+      </th>
+      <th>
         Seen
       </th>
       <th>
@@ -44,6 +47,9 @@ exports[`Render should render users table 1`] = `
       </th>
       <th>
         Email
+      </th>
+      <th>
+        Name
       </th>
       <th>
         Seen
@@ -82,46 +88,33 @@ exports[`Render should render users table 1`] = `
           user-0@test.com
         </span>
       </td>
-      <td />
       <td>
-        <div
-          className="gf-form-select-wrapper width-12"
-        >
-          <select
-            className="gf-form-input"
-            onChange={[Function]}
-            value="Admin"
-          >
-            <option
-              key="Viewer-0"
-              value="Viewer"
-            >
-              Viewer
-            </option>
-            <option
-              key="Editor-1"
-              value="Editor"
-            >
-              Editor
-            </option>
-            <option
-              key="Admin-2"
-              value="Admin"
-            >
-              Admin
-            </option>
-          </select>
-        </div>
+        user-0 test
+      </td>
+      <td />
+      <td
+        className="width-8"
+      >
+        <Component
+          onChange={[Function]}
+          value="Admin"
+        />
       </td>
       <td>
-        <div
-          className="btn btn-danger btn-small"
+        <Button
+          icon="times"
           onClick={[Function]}
-        >
-          <i
-            className="fa fa-remove"
-          />
-        </div>
+          size="sm"
+          variant="destructive"
+        />
+        <Component
+          body="Are you sure you want to delete user user-0?"
+          confirmText="Delete"
+          isOpen={false}
+          onConfirm={[Function]}
+          onDismiss={[Function]}
+          title="Delete"
+        />
       </td>
     </tr>
     <tr
@@ -145,46 +138,33 @@ exports[`Render should render users table 1`] = `
           user-1@test.com
         </span>
       </td>
-      <td />
       <td>
-        <div
-          className="gf-form-select-wrapper width-12"
-        >
-          <select
-            className="gf-form-input"
-            onChange={[Function]}
-            value="Admin"
-          >
-            <option
-              key="Viewer-0"
-              value="Viewer"
-            >
-              Viewer
-            </option>
-            <option
-              key="Editor-1"
-              value="Editor"
-            >
-              Editor
-            </option>
-            <option
-              key="Admin-2"
-              value="Admin"
-            >
-              Admin
-            </option>
-          </select>
-        </div>
+        user-1 test
+      </td>
+      <td />
+      <td
+        className="width-8"
+      >
+        <Component
+          onChange={[Function]}
+          value="Admin"
+        />
       </td>
       <td>
-        <div
-          className="btn btn-danger btn-small"
+        <Button
+          icon="times"
           onClick={[Function]}
-        >
-          <i
-            className="fa fa-remove"
-          />
-        </div>
+          size="sm"
+          variant="destructive"
+        />
+        <Component
+          body="Are you sure you want to delete user user-1?"
+          confirmText="Delete"
+          isOpen={false}
+          onConfirm={[Function]}
+          onDismiss={[Function]}
+          title="Delete"
+        />
       </td>
     </tr>
     <tr
@@ -208,46 +188,33 @@ exports[`Render should render users table 1`] = `
           user-2@test.com
         </span>
       </td>
-      <td />
       <td>
-        <div
-          className="gf-form-select-wrapper width-12"
-        >
-          <select
-            className="gf-form-input"
-            onChange={[Function]}
-            value="Admin"
-          >
-            <option
-              key="Viewer-0"
-              value="Viewer"
-            >
-              Viewer
-            </option>
-            <option
-              key="Editor-1"
-              value="Editor"
-            >
-              Editor
-            </option>
-            <option
-              key="Admin-2"
-              value="Admin"
-            >
-              Admin
-            </option>
-          </select>
-        </div>
+        user-2 test
+      </td>
+      <td />
+      <td
+        className="width-8"
+      >
+        <Component
+          onChange={[Function]}
+          value="Admin"
+        />
       </td>
       <td>
-        <div
-          className="btn btn-danger btn-small"
+        <Button
+          icon="times"
           onClick={[Function]}
-        >
-          <i
-            className="fa fa-remove"
-          />
-        </div>
+          size="sm"
+          variant="destructive"
+        />
+        <Component
+          body="Are you sure you want to delete user user-2?"
+          confirmText="Delete"
+          isOpen={false}
+          onConfirm={[Function]}
+          onDismiss={[Function]}
+          title="Delete"
+        />
       </td>
     </tr>
     <tr
@@ -271,46 +238,33 @@ exports[`Render should render users table 1`] = `
           user-3@test.com
         </span>
       </td>
-      <td />
       <td>
-        <div
-          className="gf-form-select-wrapper width-12"
-        >
-          <select
-            className="gf-form-input"
-            onChange={[Function]}
-            value="Admin"
-          >
-            <option
-              key="Viewer-0"
-              value="Viewer"
-            >
-              Viewer
-            </option>
-            <option
-              key="Editor-1"
-              value="Editor"
-            >
-              Editor
-            </option>
-            <option
-              key="Admin-2"
-              value="Admin"
-            >
-              Admin
-            </option>
-          </select>
-        </div>
+        user-3 test
+      </td>
+      <td />
+      <td
+        className="width-8"
+      >
+        <Component
+          onChange={[Function]}
+          value="Admin"
+        />
       </td>
       <td>
-        <div
-          className="btn btn-danger btn-small"
+        <Button
+          icon="times"
           onClick={[Function]}
-        >
-          <i
-            className="fa fa-remove"
-          />
-        </div>
+          size="sm"
+          variant="destructive"
+        />
+        <Component
+          body="Are you sure you want to delete user user-3?"
+          confirmText="Delete"
+          isOpen={false}
+          onConfirm={[Function]}
+          onDismiss={[Function]}
+          title="Delete"
+        />
       </td>
     </tr>
     <tr
@@ -334,46 +288,33 @@ exports[`Render should render users table 1`] = `
           user-4@test.com
         </span>
       </td>
-      <td />
       <td>
-        <div
-          className="gf-form-select-wrapper width-12"
-        >
-          <select
-            className="gf-form-input"
-            onChange={[Function]}
-            value="Admin"
-          >
-            <option
-              key="Viewer-0"
-              value="Viewer"
-            >
-              Viewer
-            </option>
-            <option
-              key="Editor-1"
-              value="Editor"
-            >
-              Editor
-            </option>
-            <option
-              key="Admin-2"
-              value="Admin"
-            >
-              Admin
-            </option>
-          </select>
-        </div>
+        user-4 test
+      </td>
+      <td />
+      <td
+        className="width-8"
+      >
+        <Component
+          onChange={[Function]}
+          value="Admin"
+        />
       </td>
       <td>
-        <div
-          className="btn btn-danger btn-small"
+        <Button
+          icon="times"
           onClick={[Function]}
-        >
-          <i
-            className="fa fa-remove"
-          />
-        </div>
+          size="sm"
+          variant="destructive"
+        />
+        <Component
+          body="Are you sure you want to delete user user-4?"
+          confirmText="Delete"
+          isOpen={false}
+          onConfirm={[Function]}
+          onDismiss={[Function]}
+          title="Delete"
+        />
       </td>
     </tr>
     <tr
@@ -397,46 +338,33 @@ exports[`Render should render users table 1`] = `
           user-5@test.com
         </span>
       </td>
-      <td />
       <td>
-        <div
-          className="gf-form-select-wrapper width-12"
-        >
-          <select
-            className="gf-form-input"
-            onChange={[Function]}
-            value="Admin"
-          >
-            <option
-              key="Viewer-0"
-              value="Viewer"
-            >
-              Viewer
-            </option>
-            <option
-              key="Editor-1"
-              value="Editor"
-            >
-              Editor
-            </option>
-            <option
-              key="Admin-2"
-              value="Admin"
-            >
-              Admin
-            </option>
-          </select>
-        </div>
+        user-5 test
+      </td>
+      <td />
+      <td
+        className="width-8"
+      >
+        <Component
+          onChange={[Function]}
+          value="Admin"
+        />
       </td>
       <td>
-        <div
-          className="btn btn-danger btn-small"
+        <Button
+          icon="times"
           onClick={[Function]}
-        >
-          <i
-            className="fa fa-remove"
-          />
-        </div>
+          size="sm"
+          variant="destructive"
+        />
+        <Component
+          body="Are you sure you want to delete user user-5?"
+          confirmText="Delete"
+          isOpen={false}
+          onConfirm={[Function]}
+          onDismiss={[Function]}
+          title="Delete"
+        />
       </td>
     </tr>
   </tbody>

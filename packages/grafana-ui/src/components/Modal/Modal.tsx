@@ -1,67 +1,26 @@
 import React from 'react';
 import { Portal } from '../Portal/Portal';
-import { css, cx } from 'emotion';
-import { GrafanaTheme, ThemeContext } from '../..';
+import { cx } from 'emotion';
+import { withTheme } from '../../themes';
+import { IconName } from '../../types';
+import { Themeable } from '../../types';
+import { getModalStyles } from './getModalStyles';
+import { ModalHeader } from './ModalHeader';
+import { IconButton } from '../IconButton/IconButton';
 
-const getStyles = (theme: GrafanaTheme) => ({
-  modal: css`
-    position: fixed;
-    z-index: ${theme.zIndex.modal};
-    width: 100%;
-    background: ${theme.colors.pageBg};
-    box-shadow: 0 3px 7px rgba(0, 0, 0, 0.3);
-    background-clip: padding-box;
-    outline: none;
-
-    max-width: 750px;
-    left: 0;
-    right: 0;
-    margin-left: auto;
-    margin-right: auto;
-    top: 10%;
-  `,
-  modalBackdrop: css`
-    position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    z-index: ${theme.zIndex.modalBackdrop}
-    background-color: ${theme.colors.bodyBg}
-    opacity: 0.8;
-    backdrop-filter: blur(4px);
-  `,
-  modalHeader: css`
-    background: ${theme.background.pageHeader};
-    box-shadow: ${theme.shadow.pageHeader};
-    border-bottom: 1px soliod ${theme.colors.pageHeaderBorder};
-    display: flex;
-  `,
-  modalHeaderTitle: css`
-    font-size: ${theme.typography.heading.h3};
-    padding-top: calc(${theme.spacing.d} * 0.75);
-    margin: 0 calc(${theme.spacing.d} * 3) 0 calc(${theme.spacing.d} * 1.5);
-  `,
-  modalHeaderClose: css`
-    margin-left: auto;
-    padding: 9px ${theme.spacing.d};
-  `,
-  modalContent: css`
-    padding: calc(${theme.spacing.d} * 2);
-  `,
-});
-
-interface Props {
+interface Props extends Themeable {
+  icon?: IconName;
   title: string | JSX.Element;
+  className?: string;
+
   isOpen?: boolean;
   onDismiss?: () => void;
+
+  // If not set will call onDismiss if that is set.
   onClickBackdrop?: () => void;
 }
 
-export class Modal extends React.PureComponent<Props> {
-  static contextType = ThemeContext;
-  context!: React.ContextType<typeof ThemeContext>;
-
+export class UnthemedModal extends React.PureComponent<Props> {
   onDismiss = () => {
     if (this.props.onDismiss) {
       this.props.onDismiss();
@@ -72,9 +31,15 @@ export class Modal extends React.PureComponent<Props> {
     this.onDismiss();
   };
 
+  renderDefaultHeader(title: string) {
+    const { icon } = this.props;
+
+    return <ModalHeader icon={icon} title={title} />;
+  }
+
   render() {
-    const { title, isOpen = false } = this.props;
-    const styles = getStyles(this.context);
+    const { title, isOpen = false, theme, className } = this.props;
+    const styles = getModalStyles(theme);
 
     if (!isOpen) {
       return null;
@@ -82,17 +47,19 @@ export class Modal extends React.PureComponent<Props> {
 
     return (
       <Portal>
-        <div className={cx(styles.modal)}>
-          <div className={cx(styles.modalHeader)}>
-            {typeof title === 'string' ? <h2 className={cx(styles.modalHeaderTitle)}>{title}</h2> : <>{title}</>}
-            <a className={cx(styles.modalHeaderClose)} onClick={this.onDismiss}>
-              <i className="fa fa-remove" />
-            </a>
+        <div className={cx(styles.modal, className)}>
+          <div className={styles.modalHeader}>
+            {typeof title === 'string' ? this.renderDefaultHeader(title) : title}
+            <div className={styles.modalHeaderClose}>
+              <IconButton surface="header" name="times" size="lg" onClick={this.onDismiss} />
+            </div>
           </div>
-          <div className={cx(styles.modalContent)}>{this.props.children}</div>
+          <div className={styles.modalContent}>{this.props.children}</div>
         </div>
-        <div className={cx(styles.modalBackdrop)} onClick={this.props.onClickBackdrop || this.onClickBackdrop} />
+        <div className={styles.modalBackdrop} onClick={this.props.onClickBackdrop || this.onClickBackdrop} />
       </Portal>
     );
   }
 }
+
+export const Modal = withTheme(UnthemedModal);

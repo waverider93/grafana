@@ -3,6 +3,7 @@ package sqlstore
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -35,62 +36,30 @@ func (ss *SqlStore) addUserQueryAndCommandHandlers() {
 	bus.AddHandlerCtx("sql", CreateUser)
 }
 
-func getOrgIdForNewUser(cmd *models.CreateUserCommand, sess *DBSession) (int64, error) {
+func getOrgIdForNewUser(sess *DBSession, cmd *models.CreateUserCommand) (int64, error) {
 	if cmd.SkipOrgSetup {
 		return -1, nil
 	}
 
-	var org models.Org
-
-	if setting.AutoAssignOrg {
-		has, err := sess.Where("id=?", setting.AutoAssignOrgId).Get(&org)
+	if setting.AutoAssignOrg && cmd.OrgId != 0 {
+		err := verifyExistingOrg(sess, cmd.OrgId)
 		if err != nil {
-			return 0, err
+			return -1, err
 		}
-		if has {
-			return org.Id, nil
-		}
-		if setting.AutoAssignOrgId == 1 {
-			org.Name = "Main Org."
-			org.Id = int64(setting.AutoAssignOrgId)
-		} else {
-			sqlog.Info("Could not create user: organization id %v does not exist",
-				setting.AutoAssignOrgId)
-			return 0, fmt.Errorf("Could not create user: organization id %v does not exist",
-				setting.AutoAssignOrgId)
-		}
-	} else {
-		org.Name = cmd.OrgName
-		if len(org.Name) == 0 {
-			org.Name = util.StringsFallback2(cmd.Email, cmd.Login)
-		}
+		return cmd.OrgId, nil
 	}
 
-	org.Created = time.Now()
-	org.Updated = time.Now()
-
-	if org.Id != 0 {
-		if _, err := sess.InsertId(&org); err != nil {
-			return 0, err
-		}
-	} else {
-		if _, err := sess.InsertOne(&org); err != nil {
-			return 0, err
-		}
+	orgName := cmd.OrgName
+	if len(orgName) == 0 {
+		orgName = util.StringsFallback2(cmd.Email, cmd.Login)
 	}
 
-	sess.publishAfterCommit(&events.OrgCreated{
-		Timestamp: org.Created,
-		Id:        org.Id,
-		Name:      org.Name,
-	})
-
-	return org.Id, nil
+	return getOrCreateOrg(sess, orgName)
 }
 
 func CreateUser(ctx context.Context, cmd *models.CreateUserCommand) error {
 	return inTransactionCtx(ctx, func(sess *DBSession) error {
-		orgId, err := getOrgIdForNewUser(cmd, sess)
+		orgId, err := getOrgIdForNewUser(sess, cmd)
 		if err != nil {
 			return err
 		}
@@ -114,11 +83,23 @@ func CreateUser(ctx context.Context, cmd *models.CreateUserCommand) error {
 			LastSeenAt:    time.Now().AddDate(-10, 0, 0),
 		}
 
-		user.Salt = util.GetRandomString(10)
-		user.Rands = util.GetRandomString(10)
+		salt, err := util.GetRandomString(10)
+		if err != nil {
+			return err
+		}
+		user.Salt = salt
+		rands, err := util.GetRandomString(10)
+		if err != nil {
+			return err
+		}
+		user.Rands = rands
 
 		if len(cmd.Password) > 0 {
-			user.Password = util.EncodePassword(cmd.Password, user.Salt)
+			encodedPassword, err := util.EncodePassword(cmd.Password, user.Salt)
+			if err != nil {
+				return err
+			}
+			user.Password = encodedPassword
 		}
 
 		sess.UseBool("is_admin")
@@ -284,7 +265,9 @@ func UpdateUserLastSeenAt(cmd *models.UpdateUserLastSeenAtCommand) error {
 
 func SetUsingOrg(cmd *models.SetUsingOrgCommand) error {
 	getOrgsForUserCmd := &models.GetUserOrgListQuery{UserId: cmd.UserId}
-	GetUserOrgList(getOrgsForUserCmd)
+	if err := GetUserOrgList(getOrgsForUserCmd); err != nil {
+		return err
+	}
 
 	valid := false
 	for _, other := range getOrgsForUserCmd.Result {
@@ -292,7 +275,6 @@ func SetUsingOrg(cmd *models.SetUsingOrgCommand) error {
 			valid = true
 		}
 	}
-
 	if !valid {
 		return fmt.Errorf("user does not belong to org")
 	}
@@ -338,6 +320,27 @@ func GetUserProfile(query *models.GetUserProfileQuery) error {
 	return err
 }
 
+type byOrgName []*models.UserOrgDTO
+
+// Len returns the length of an array of organisations.
+func (o byOrgName) Len() int {
+	return len(o)
+}
+
+// Swap swaps two indices of an array of organizations.
+func (o byOrgName) Swap(i, j int) {
+	o[i], o[j] = o[j], o[i]
+}
+
+// Less returns whether element i of an array of organizations is less than element j.
+func (o byOrgName) Less(i, j int) bool {
+	if strings.ToLower(o[i].Name) < strings.ToLower(o[j].Name) {
+		return true
+	}
+
+	return o[i].Name < o[j].Name
+}
+
 func GetUserOrgList(query *models.GetUserOrgListQuery) error {
 	query.Result = make([]*models.UserOrgDTO, 0)
 	sess := x.Table("org_user")
@@ -346,6 +349,7 @@ func GetUserOrgList(query *models.GetUserOrgListQuery) error {
 	sess.Cols("org.name", "org_user.role", "org_user.org_id")
 	sess.OrderBy("org.name")
 	err := sess.Find(&query.Result)
+	sort.Sort(byOrgName(query.Result))
 	return err
 }
 
@@ -481,7 +485,7 @@ func SearchUsers(query *models.SearchUsersQuery) error {
 	offset := query.Limit * (query.Page - 1)
 	sess.Limit(query.Limit, offset)
 	sess.Cols("u.id", "u.email", "u.name", "u.login", "u.is_admin", "u.is_disabled", "u.last_seen_at", "user_auth.auth_module")
-	sess.OrderBy("u.id")
+	sess.Asc("u.login", "u.email")
 	if err := sess.Find(&query.Result.Users); err != nil {
 		return err
 	}
@@ -507,7 +511,12 @@ func SearchUsers(query *models.SearchUsersQuery) error {
 func DisableUser(cmd *models.DisableUserCommand) error {
 	user := models.User{}
 	sess := x.Table("user")
-	sess.ID(cmd.UserId).Get(&user)
+
+	if has, err := sess.ID(cmd.UserId).Get(&user); err != nil {
+		return err
+	} else if !has {
+		return models.ErrUserNotFound
+	}
 
 	user.IsDisabled = cmd.IsDisabled
 	sess.UseBool("is_disabled")
@@ -548,6 +557,16 @@ func DeleteUser(cmd *models.DeleteUserCommand) error {
 }
 
 func deleteUserInTransaction(sess *DBSession, cmd *models.DeleteUserCommand) error {
+	//Check if user exists
+	user := models.User{Id: cmd.UserId}
+	has, err := sess.Get(&user)
+	if err != nil {
+		return err
+	}
+	if !has {
+		return models.ErrUserNotFound
+	}
+
 	deletes := []string{
 		"DELETE FROM star WHERE user_id = ?",
 		"DELETE FROM " + dialect.Quote("user") + " WHERE id = ?",
@@ -573,7 +592,9 @@ func deleteUserInTransaction(sess *DBSession, cmd *models.DeleteUserCommand) err
 func UpdateUserPermissions(cmd *models.UpdateUserPermissionsCommand) error {
 	return inTransaction(func(sess *DBSession) error {
 		user := models.User{}
-		sess.ID(cmd.UserId).Get(&user)
+		if _, err := sess.ID(cmd.UserId).Get(&user); err != nil {
+			return err
+		}
 
 		user.IsAdmin = cmd.IsGrafanaAdmin
 		sess.UseBool("is_admin")

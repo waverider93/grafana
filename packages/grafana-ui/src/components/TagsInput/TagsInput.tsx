@@ -1,7 +1,8 @@
 import React, { ChangeEvent, KeyboardEvent, PureComponent } from 'react';
 import { css, cx } from 'emotion';
 import { stylesFactory } from '../../themes/stylesFactory';
-import { Button, Input } from '..';
+import { Button } from '../Button';
+import { Input } from '../Forms/Legacy/Input/Input';
 import { TagItem } from './TagItem';
 
 interface Props {
@@ -90,7 +91,6 @@ export class TagsInput extends PureComponent<Props, State> {
 
       addButtonStyle: css`
         margin-left: 8px;
-        margin-top: 2px;
       `,
     }));
 

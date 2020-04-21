@@ -1,9 +1,8 @@
 import React, { PureComponent } from 'react';
 import { css, cx } from 'emotion';
-import { TimeZone, AbsoluteTimeRange, GraphSeriesXY, dateTimeForTimeZone } from '@grafana/data';
+import { GrafanaTheme, TimeZone, AbsoluteTimeRange, GraphSeriesXY, dateTimeForTimeZone } from '@grafana/data';
 
 import {
-  GrafanaTheme,
   selectThemeVariant,
   Themeable,
   GraphWithLegend,
@@ -12,6 +11,8 @@ import {
   Collapse,
   GraphSeriesToggler,
   GraphSeriesTogglerAPI,
+  Chart,
+  Icon,
 } from '@grafana/ui';
 
 const MAX_NUMBER_OF_TIME_SERIES = 20;
@@ -24,11 +25,11 @@ const getStyles = (theme: GrafanaTheme) => ({
     padding: 10px 0;
     border-radius: ${theme.border.radius.md};
     text-align: center;
-    background-color: ${selectThemeVariant({ light: theme.colors.white, dark: theme.colors.dark4 }, theme.type)};
+    background-color: ${selectThemeVariant({ light: theme.palette.white, dark: theme.palette.dark4 }, theme.type)};
   `,
   disclaimerIcon: css`
     label: disclaimer-icon;
-    color: ${theme.colors.yellow};
+    color: ${theme.palette.yellow};
     margin-right: ${theme.spacing.xs};
   `,
   showAllTimeSeries: css`
@@ -39,17 +40,17 @@ const getStyles = (theme: GrafanaTheme) => ({
 });
 
 interface Props extends Themeable {
-  series: GraphSeriesXY[];
+  series?: GraphSeriesXY[];
   width: number;
   absoluteRange: AbsoluteTimeRange;
-  loading: boolean;
+  loading?: boolean;
   showPanel: boolean;
   showBars: boolean;
   showLines: boolean;
   isStacked: boolean;
-  showingGraph: boolean;
-  showingTable: boolean;
-  timeZone: TimeZone;
+  showingGraph?: boolean;
+  showingTable?: boolean;
+  timeZone?: TimeZone;
   onUpdateTimeRange: (absoluteRange: AbsoluteTimeRange) => void;
   onToggleGraph?: (showingGraph: boolean) => void;
   onHiddenSeriesChanged?: (hiddenSeries: string[]) => void;
@@ -75,7 +76,7 @@ class UnThemedExploreGraphPanel extends PureComponent<Props, State> {
   onClickGraphButton = () => {
     const { onToggleGraph, showingGraph } = this.props;
     if (onToggleGraph) {
-      onToggleGraph(showingGraph);
+      onToggleGraph(showingGraph ?? false);
     }
   };
 
@@ -137,7 +138,10 @@ class UnThemedExploreGraphPanel extends PureComponent<Props, State> {
               lineWidth={lineWidth}
               onSeriesToggle={onSeriesToggle}
               onHorizontalRegionSelected={this.onChangeTime}
-            />
+            >
+              {/* For logs we are using mulit mode until we refactor logs histogram to use barWidth instead of lineWidth to render bars */}
+              <Chart.Tooltip mode={showBars ? 'multi' : 'single'} />
+            </GraphWithLegend>
           );
         }}
       </GraphSeriesToggler>
@@ -153,11 +157,12 @@ class UnThemedExploreGraphPanel extends PureComponent<Props, State> {
       <>
         {series && series.length > MAX_NUMBER_OF_TIME_SERIES && !showAllTimeSeries && (
           <div className={cx([style.timeSeriesDisclaimer])}>
-            <i className={cx(['fa fa-fw fa-warning', style.disclaimerIcon])} />
+            <Icon className={style.disclaimerIcon} name="exclamation-triangle" />
             {`Showing only ${MAX_NUMBER_OF_TIME_SERIES} time series. `}
-            <span className={cx([style.showAllTimeSeries])} onClick={this.onShowAllTimeSeries}>{`Show all ${
-              series.length
-            }`}</span>
+            <span
+              className={cx([style.showAllTimeSeries])}
+              onClick={this.onShowAllTimeSeries}
+            >{`Show all ${series.length}`}</span>
           </div>
         )}
 

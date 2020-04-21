@@ -171,6 +171,24 @@ func TestMultiLDAP(t *testing.T) {
 				teardown()
 			})
 
+			Convey("Should still try to auth with the second server after receiving a dial error from the first", func() {
+				mock := setup()
+
+				expectedError := errors.New("Dial error")
+				mock.dialErrReturn = expectedError
+
+				multi := New([]*ldap.ServerConfig{
+					{}, {},
+				})
+				_, err := multi.Login(&models.LoginUserQuery{})
+
+				So(mock.dialCalledTimes, ShouldEqual, 2)
+
+				So(err, ShouldEqual, expectedError)
+
+				teardown()
+			})
+
 			Convey("Should return unknown error", func() {
 				mock := setup()
 
@@ -287,9 +305,42 @@ func TestMultiLDAP(t *testing.T) {
 
 				teardown()
 			})
+
+			Convey("Should still try to auth with the second server after receiving a dial error from the first", func() {
+				mock := setup()
+
+				expectedError := errors.New("Dial error")
+				mock.dialErrReturn = expectedError
+
+				multi := New([]*ldap.ServerConfig{
+					{}, {},
+				})
+				_, _, err := multi.User("test")
+
+				So(mock.dialCalledTimes, ShouldEqual, 2)
+				So(err, ShouldEqual, expectedError)
+
+				teardown()
+			})
 		})
 
 		Convey("Users()", func() {
+			Convey("Should still try to auth with the second server after receiving a dial error from the first", func() {
+				mock := setup()
+
+				expectedError := errors.New("Dial error")
+				mock.dialErrReturn = expectedError
+
+				multi := New([]*ldap.ServerConfig{
+					{}, {},
+				})
+				_, err := multi.Users([]string{"test"})
+
+				So(mock.dialCalledTimes, ShouldEqual, 2)
+				So(err, ShouldEqual, expectedError)
+
+				teardown()
+			})
 			Convey("Should return error for absent config list", func() {
 				setup()
 
@@ -394,4 +445,77 @@ func TestMultiLDAP(t *testing.T) {
 			})
 		})
 	})
+}
+
+// mockLDAP represents testing struct for ldap testing
+type mockLDAP struct {
+	dialCalledTimes  int
+	loginCalledTimes int
+	closeCalledTimes int
+	usersCalledTimes int
+	bindCalledTimes  int
+
+	dialErrReturn error
+
+	loginErrReturn error
+	loginReturn    *models.ExternalUserInfo
+
+	bindErrReturn error
+
+	usersErrReturn   error
+	usersFirstReturn []*models.ExternalUserInfo
+	usersRestReturn  []*models.ExternalUserInfo
+}
+
+// Login test fn
+func (mock *mockLDAP) Login(*models.LoginUserQuery) (*models.ExternalUserInfo, error) {
+
+	mock.loginCalledTimes = mock.loginCalledTimes + 1
+	return mock.loginReturn, mock.loginErrReturn
+}
+
+// Users test fn
+func (mock *mockLDAP) Users([]string) ([]*models.ExternalUserInfo, error) {
+	mock.usersCalledTimes = mock.usersCalledTimes + 1
+
+	if mock.usersCalledTimes == 1 {
+		return mock.usersFirstReturn, mock.usersErrReturn
+	}
+
+	return mock.usersRestReturn, mock.usersErrReturn
+}
+
+// UserBind test fn
+func (mock *mockLDAP) UserBind(string, string) error {
+	return nil
+}
+
+// Dial test fn
+func (mock *mockLDAP) Dial() error {
+	mock.dialCalledTimes = mock.dialCalledTimes + 1
+	return mock.dialErrReturn
+}
+
+// Close test fn
+func (mock *mockLDAP) Close() {
+	mock.closeCalledTimes = mock.closeCalledTimes + 1
+}
+
+func (mock *mockLDAP) Bind() error {
+	mock.bindCalledTimes++
+	return mock.bindErrReturn
+}
+
+func setup() *mockLDAP {
+	mock := &mockLDAP{}
+
+	newLDAP = func(config *ldap.ServerConfig) ldap.IServer {
+		return mock
+	}
+
+	return mock
+}
+
+func teardown() {
+	newLDAP = ldap.New
 }

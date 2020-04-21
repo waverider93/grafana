@@ -4,12 +4,24 @@ import { css, cx } from 'emotion';
 // Ignoring because I couldn't get @types/react-select work wih Torkel's fork
 // @ts-ignore
 import { components } from '@torkelo/react-select';
-import { FadeTransition, Spinner } from '..';
 import { useDelayedSwitch } from '../../utils/useDelayedSwitch';
-import { stylesFactory } from '../../themes';
+import { stylesFactory, useTheme } from '../../themes';
 import { SlideOutTransition } from '../transitions/SlideOutTransition';
+import { FadeTransition } from '../transitions/FadeTransition';
+import { Spinner } from '../Spinner/Spinner';
+import { GrafanaTheme } from '@grafana/data';
 
-const getStyles = stylesFactory(() => {
+const getStyles = stylesFactory((theme: GrafanaTheme) => {
+  const singleValue = css`
+    label: singleValue;
+    color: ${theme.colors.formInputText};
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-sizing: border-box;
+    max-width: 100%;
+    /* padding-right: 40px; */
+  `;
   const container = css`
     width: 16px;
     height: 16px;
@@ -26,7 +38,7 @@ const getStyles = stylesFactory(() => {
     position: absolute;
   `;
 
-  return { container, item };
+  return { singleValue, container, item };
 });
 
 type Props = {
@@ -34,18 +46,27 @@ type Props = {
   data: {
     imgUrl?: string;
     loading?: boolean;
+    hideText?: boolean;
   };
 };
 
 export const SingleValue = (props: Props) => {
   const { children, data } = props;
-  const styles = getStyles();
+  const theme = useTheme();
+  const styles = getStyles(theme);
 
   const loading = useDelayedSwitch(data.loading || false, { delay: 250, duration: 750 });
 
   return (
     <components.SingleValue {...props}>
-      <div className={cx('gf-form-select-box__img-value')}>
+      <div
+        className={cx(
+          styles.singleValue,
+          css`
+            overflow: hidden;
+          `
+        )}
+      >
         {data.imgUrl ? (
           <FadeWithImage loading={loading} imgUrl={data.imgUrl} />
         ) : (
@@ -55,14 +76,15 @@ export const SingleValue = (props: Props) => {
             </div>
           </SlideOutTransition>
         )}
-        {children}
+        {!data.hideText && children}
       </div>
     </components.SingleValue>
   );
 };
 
 const FadeWithImage = (props: { loading: boolean; imgUrl: string }) => {
-  const styles = getStyles();
+  const theme = useTheme();
+  const styles = getStyles(theme);
 
   return (
     <div className={styles.container}>

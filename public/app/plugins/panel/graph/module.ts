@@ -11,9 +11,15 @@ import { DataProcessor } from './data_processor';
 import { axesEditorComponent } from './axes_editor';
 import config from 'app/core/config';
 import TimeSeries from 'app/core/time_series2';
-import { getColorFromHexRgbOrName, VariableSuggestion, PanelEvents } from '@grafana/ui';
 import { getProcessedDataFrames } from 'app/features/dashboard/state/runRequest';
-import { DataFrame, DataLink, DateTimeInput } from '@grafana/data';
+import {
+  getColorFromHexRgbOrName,
+  PanelEvents,
+  DataFrame,
+  DataLink,
+  DateTimeInput,
+  VariableSuggestion,
+} from '@grafana/data';
 
 import { GraphContextMenuCtrl } from './GraphContextMenuCtrl';
 import { getDataLinksVariableSuggestions } from 'app/features/panel/panellinks/link_srv';
@@ -27,6 +33,7 @@ class GraphCtrl extends MetricsPanelCtrl {
 
   renderError: boolean;
   hiddenSeries: any = {};
+  hiddenSeriesTainted = false;
   seriesList: TimeSeries[] = [];
   dataList: DataFrame[] = [];
   annotations: any = [];
@@ -78,12 +85,14 @@ class GraphCtrl extends MetricsPanelCtrl {
     lines: true,
     // fill factor
     fill: 1,
-    // fill factor
+    // fill gradient
     fillGradient: 0,
     // line width in pixels
     linewidth: 1,
     // show/hide dashed line
     dashes: false,
+    // show/hide line
+    hiddenSeries: false,
     // length of a dash
     dashLength: 10,
     // length of space between two dashes
@@ -150,25 +159,27 @@ class GraphCtrl extends MetricsPanelCtrl {
 
     this.events.on(PanelEvents.render, this.onRender.bind(this));
     this.events.on(CoreEvents.dataFramesReceived, this.onDataFramesReceived.bind(this));
-    this.events.on(PanelEvents.dataReceived, this.onDataError.bind(this));
     this.events.on(PanelEvents.dataSnapshotLoad, this.onDataSnapshotLoad.bind(this));
     this.events.on(PanelEvents.editModeInitialized, this.onInitEditMode.bind(this));
     this.events.on(PanelEvents.initPanelActions, this.onInitPanelActions.bind(this));
 
     this.onDataLinksChange = this.onDataLinksChange.bind(this);
+    this.annotationsPromise = Promise.resolve({ annotations: [] });
   }
 
   onInitEditMode() {
-    this.addEditorTab('Display options', 'public/app/plugins/panel/graph/tab_display.html');
+    this.addEditorTab('Display', 'public/app/plugins/panel/graph/tab_display.html');
+    this.addEditorTab('Series overides', 'public/app/plugins/panel/graph/tab_series_overrides.html');
     this.addEditorTab('Axes', axesEditorComponent);
     this.addEditorTab('Legend', 'public/app/plugins/panel/graph/tab_legend.html');
-    this.addEditorTab('Thresholds & Time Regions', 'public/app/plugins/panel/graph/tab_thresholds_time_regions.html');
+    this.addEditorTab('Thresholds', 'public/app/plugins/panel/graph/tab_thresholds.html');
+    this.addEditorTab('Time regions', 'public/app/plugins/panel/graph/time_regions.html');
     this.addEditorTab('Data links', 'public/app/plugins/panel/graph/tab_drilldown_links.html');
     this.subTabIndex = 0;
+    this.hiddenSeriesTainted = false;
   }
 
   onInitPanelActions(actions: any[]) {
-    actions.push({ text: 'Export CSV', click: 'ctrl.exportCsv()' });
     actions.push({ text: 'Toggle legend', click: 'ctrl.toggleLegend()', shortcut: 'p l' });
   }
 
@@ -203,12 +214,6 @@ class GraphCtrl extends MetricsPanelCtrl {
 
     const frames = getProcessedDataFrames(snapshotData);
     this.onDataFramesReceived(frames);
-  }
-
-  onDataError(err: any) {
-    this.seriesList = [];
-    this.annotations = [];
-    this.render([]);
   }
 
   onDataFramesReceived(data: DataFrame[]) {
@@ -247,6 +252,13 @@ class GraphCtrl extends MetricsPanelCtrl {
         this.loading = false;
         this.alertState = result.alertState;
         this.annotations = result.annotations;
+
+        // Temp alerting & react hack
+        // Add it to the seriesList so react can access it
+        if (this.alertState) {
+          (this.seriesList as any).alertState = this.alertState.state;
+        }
+
         this.render(this.seriesList);
       },
       () => {
@@ -267,6 +279,9 @@ class GraphCtrl extends MetricsPanelCtrl {
       if (series.unit) {
         this.panel.yaxes[series.yaxis - 1].format = series.unit;
       }
+      if (this.hiddenSeriesTainted === false && series.hiddenSeries === true) {
+        this.hiddenSeries[series.alias] = true;
+      }
     }
   }
 
@@ -277,6 +292,7 @@ class GraphCtrl extends MetricsPanelCtrl {
   };
 
   onToggleSeries = (hiddenSeries: any) => {
+    this.hiddenSeriesTainted = true;
     this.hiddenSeries = hiddenSeries;
     this.render();
   };
@@ -322,16 +338,6 @@ class GraphCtrl extends MetricsPanelCtrl {
     const legend = this.panel.legend;
     legend.values = legend.min || legend.max || legend.avg || legend.current || legend.total;
     this.render();
-  }
-
-  exportCsv() {
-    const scope = this.$scope.$new(true);
-    scope.seriesList = this.seriesList;
-    this.publishAppEvent(CoreEvents.showModal, {
-      templateHtml: '<export-data-modal data="seriesList"></export-data-modal>',
-      scope,
-      modalClass: 'modal--narrow',
-    });
   }
 
   onContextMenuClose = () => {

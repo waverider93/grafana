@@ -1,9 +1,15 @@
 import { defaults } from 'lodash';
 import { Observable } from 'rxjs';
 
-import { DataQueryRequest, DataQueryResponse } from '@grafana/ui';
-
-import { FieldType, CircularDataFrame, CSVReader, Field, LoadingState } from '@grafana/data';
+import {
+  DataQueryRequest,
+  DataQueryResponse,
+  FieldType,
+  CircularDataFrame,
+  CSVReader,
+  Field,
+  LoadingState,
+} from '@grafana/data';
 
 import { TestDataQuery, StreamingQuery } from './types';
 import { getRandomLine } from './LogIpsum';
@@ -48,7 +54,7 @@ export function runSignalStream(
     data.addField({ name: 'time', type: FieldType.time });
     data.addField({ name: 'value', type: FieldType.number });
 
-    const { spread, speed, bands, noise } = query;
+    const { spread, speed, bands = 0, noise } = query;
 
     for (let i = 0; i < bands; i++) {
       const suffix = bands > 1 ? ` ${i + 1}` : '';
@@ -211,9 +217,15 @@ export function runFetchStream(
       return reader.read().then(processChunk);
     };
 
+    if (!query.url) {
+      throw new Error('query.url is not defined');
+    }
+
     fetch(new Request(query.url)).then(response => {
-      reader = response.body.getReader();
-      reader.read().then(processChunk);
+      if (response.body) {
+        reader = response.body.getReader();
+        reader.read().then(processChunk);
+      }
     });
 
     return () => {

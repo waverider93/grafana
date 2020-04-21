@@ -2,8 +2,8 @@
 import React, { PureComponent } from 'react';
 
 // Types
-import { Select, DataQuery, DataQueryError, PanelData } from '@grafana/ui';
-import { DataFrame, SelectableValue } from '@grafana/data';
+import { LegacyForms, Icon } from '@grafana/ui';
+import { DataQuery, DataQueryError, PanelData, DataFrame, SelectableValue } from '@grafana/data';
 import { DashboardQuery } from './types';
 import config from 'app/core/config';
 import { css } from 'emotion';
@@ -12,6 +12,7 @@ import { PanelModel } from 'app/features/dashboard/state';
 import { SHARED_DASHBODARD_QUERY } from './types';
 import { getDashboardSrv } from 'app/features/dashboard/services/DashboardSrv';
 import { filterPanelDataToQuery } from 'app/features/dashboard/panel_editor/QueryEditorRow';
+const { Select } = LegacyForms;
 
 type ResultInfo = {
   img: string; // The Datasource
@@ -117,7 +118,7 @@ export class DashboardQueryEditor extends PureComponent<Props, State> {
                 <a href={editURL}>
                   {target.query}
                   &nbsp;
-                  <i className="fa fa-external-link" />
+                  <Icon name="external-link-alt" />
                 </a>
               </div>
             </div>

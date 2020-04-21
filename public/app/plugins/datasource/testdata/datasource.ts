@@ -1,18 +1,22 @@
 import {
+  DataQueryError,
   DataQueryRequest,
   DataQueryResponse,
   DataSourceApi,
   DataSourceInstanceSettings,
   MetricFindValue,
-} from '@grafana/ui';
-import { TableData, TimeSeries } from '@grafana/data';
+  TableData,
+  TimeSeries,
+  LoadingState,
+  ArrayDataFrame,
+} from '@grafana/data';
 import { Scenario, TestDataQuery } from './types';
-import { getBackendSrv } from 'app/core/services/backend_srv';
+import { getBackendSrv } from '@grafana/runtime';
 import { queryMetricTree } from './metricTree';
 import { from, merge, Observable } from 'rxjs';
 import { runStream } from './runStreams';
 import templateSrv from 'app/features/templating/template_srv';
-import { interpolateSearchFilter } from '../../../features/templating/variable';
+import { getSearchFilterScopedVar } from '../../../features/templating/utils';
 
 type TestData = TimeSeries | TableData;
 
@@ -27,8 +31,13 @@ export class TestDataDataSource extends DataSourceApi<TestDataQuery> {
 
     // Start streams and prepare queries
     for (const target of options.targets) {
+      if (target.hide) {
+        continue;
+      }
       if (target.scenarioId === 'streaming_client') {
         streams.push(runStream(target, options));
+      } else if (target.scenarioId === 'grafana_api') {
+        streams.push(runGrafanaAPI(target, options));
       } else {
         queries.push({
           ...target,
@@ -63,6 +72,7 @@ export class TestDataDataSource extends DataSourceApi<TestDataQuery> {
 
   processQueryResult(queries: any, res: any): DataQueryResponse {
     const data: TestData[] = [];
+    let error: DataQueryError | undefined = undefined;
 
     for (const query of queries) {
       const results = res.data.results[query.refId];
@@ -77,9 +87,15 @@ export class TestDataDataSource extends DataSourceApi<TestDataQuery> {
       for (const series of results.series || []) {
         data.push({ target: series.name, datapoints: series.points, refId: query.refId, tags: series.tags });
       }
+
+      if (results.error) {
+        error = {
+          message: results.error,
+        };
+      }
     }
 
-    return { data };
+    return { data, error };
   }
 
   annotationQuery(options: any) {
@@ -122,16 +138,29 @@ export class TestDataDataSource extends DataSourceApi<TestDataQuery> {
   metricFindQuery(query: string, options: any) {
     return new Promise<MetricFindValue[]>((resolve, reject) => {
       setTimeout(() => {
-        const interpolatedQuery = interpolateSearchFilter({
-          query: templateSrv.replace(query),
-          options,
-          wildcardChar: '*',
-          quoteLiteral: false,
-        });
+        const interpolatedQuery = templateSrv.replace(
+          query,
+          getSearchFilterScopedVar({ query, wildcardChar: '*', options })
+        );
         const children = queryMetricTree(interpolatedQuery);
         const items = children.map(item => ({ value: item.name, text: item.name }));
         resolve(items);
       }, 100);
     });
   }
+}
+
+function runGrafanaAPI(target: TestDataQuery, req: DataQueryRequest<TestDataQuery>): Observable<DataQueryResponse> {
+  const url = `/api/${target.stringInput}`;
+  return from(
+    getBackendSrv()
+      .get(url)
+      .then(res => {
+        const frame = new ArrayDataFrame(res);
+        return {
+          state: LoadingState.Done,
+          data: [frame],
+        };
+      })
+  );
 }

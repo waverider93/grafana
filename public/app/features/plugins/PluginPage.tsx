@@ -4,21 +4,21 @@ import { hot } from 'react-hot-loader';
 import { connect } from 'react-redux';
 import find from 'lodash/find';
 // Types
-import { UrlQueryMap } from '@grafana/runtime';
-import { StoreState, AppNotificationSeverity, CoreEvents } from 'app/types';
 import {
-  Alert,
   AppPlugin,
   GrafanaPlugin,
+  NavModel,
+  NavModelItem,
   PluginDependencies,
   PluginInclude,
   PluginIncludeType,
   PluginMeta,
   PluginMetaInfo,
   PluginType,
-  Tooltip,
-} from '@grafana/ui';
-import { NavModel, NavModelItem } from '@grafana/data';
+  UrlQueryMap,
+} from '@grafana/data';
+import { AppNotificationSeverity, CoreEvents, StoreState } from 'app/types';
+import { Alert, Tooltip } from '@grafana/ui';
 
 import Page from 'app/core/components/Page/Page';
 import { getPluginSettings } from './PluginSettingsCache';
@@ -374,7 +374,7 @@ function getPluginTabsNav(
           pages.push({
             text: page.title,
             icon: page.icon,
-            url: path + '?page=' + page.id,
+            url: `${appSubUrl}${path}?page=${page.id}`,
             id: page.id,
           });
           if (!defaultPage) {
@@ -403,7 +403,7 @@ function getPluginTabsNav(
     text: meta.name,
     img: meta.info.logos.large,
     subTitle: meta.info.author.name,
-    breadcrumbs: [{ title: 'Plugins', url: '/plugins' }],
+    breadcrumbs: [{ title: 'Plugins', url: 'plugins' }],
     url: `${appSubUrl}${path}`,
     children: setActivePage(query.page as string, pages, defaultPage),
   };

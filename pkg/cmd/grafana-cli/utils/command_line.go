@@ -1,9 +1,10 @@
 package utils
 
 import (
-	"github.com/codegangsta/cli"
+	"os"
+
 	"github.com/grafana/grafana/pkg/cmd/grafana-cli/models"
-	"github.com/grafana/grafana/pkg/cmd/grafana-cli/services"
+	"github.com/urfave/cli/v2"
 )
 
 type CommandLine interface {
@@ -15,19 +16,17 @@ type CommandLine interface {
 	Int(name string) int
 	String(name string) string
 	StringSlice(name string) []string
-	GlobalString(name string) string
 	FlagNames() (names []string)
 	Generic(name string) interface{}
 
 	PluginDirectory() string
 	RepoDirectory() string
 	PluginURL() string
-	ApiClient() ApiClient
 }
 
 type ApiClient interface {
 	GetPlugin(pluginId, repoUrl string) (models.Plugin, error)
-	DownloadFile(pluginName, filePath, url string, checksum string) (content []byte, err error)
+	DownloadFile(pluginName string, tmpFile *os.File, url string, checksum string) (err error)
 	ListAllPlugins(repoUrl string) (models.PluginRepo, error)
 }
 
@@ -47,26 +46,22 @@ func (c *ContextCommandLine) Application() *cli.App {
 	return c.App
 }
 
-func (c *ContextCommandLine) HomePath() string { return c.GlobalString("homepath") }
+func (c *ContextCommandLine) HomePath() string { return c.String("homepath") }
 
-func (c *ContextCommandLine) ConfigFile() string { return c.GlobalString("config") }
+func (c *ContextCommandLine) ConfigFile() string { return c.String("config") }
 
 func (c *ContextCommandLine) PluginDirectory() string {
-	return c.GlobalString("pluginsDir")
+	return c.String("pluginsDir")
 }
 
 func (c *ContextCommandLine) RepoDirectory() string {
-	return c.GlobalString("repo")
+	return c.String("repo")
 }
 
 func (c *ContextCommandLine) PluginURL() string {
-	return c.GlobalString("pluginUrl")
+	return c.String("pluginUrl")
 }
 
 func (c *ContextCommandLine) OptionsString() string {
-	return c.GlobalString("configOverrides")
-}
-
-func (c *ContextCommandLine) ApiClient() ApiClient {
-	return &services.GrafanaComClient{}
+	return c.String("configOverrides")
 }

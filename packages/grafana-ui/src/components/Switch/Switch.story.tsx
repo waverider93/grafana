@@ -1,23 +1,30 @@
-import React, { useState } from 'react';
-
-import { storiesOf } from '@storybook/react';
-import { withCenteredStory } from '../../utils/storybook/withCenteredStory';
+import React, { useState, useCallback } from 'react';
+import { boolean } from '@storybook/addon-knobs';
+import { withCenteredStory, withHorizontallyCenteredStory } from '../../utils/storybook/withCenteredStory';
 import { Switch } from './Switch';
-import { text } from '@storybook/addon-knobs';
+import mdx from './Switch.mdx';
 
-const getKnobs = () => {
-  return {
-    label: text('Label Text', 'Label'),
-    tooltip: text('Tooltip', ''),
-  };
+export default {
+  title: 'Forms/Switch',
+  component: Switch,
+  decorators: [withCenteredStory, withHorizontallyCenteredStory],
+  parameters: {
+    docs: {
+      page: mdx,
+    },
+  },
 };
 
-const SwitchWrapper = () => {
-  const { label, tooltip } = getKnobs();
+export const controlled = () => {
   const [checked, setChecked] = useState(false);
-  return <Switch label={label} checked={checked} onChange={() => setChecked(!checked)} tooltip={tooltip} />;
+  const onChange = useCallback(e => setChecked(e.currentTarget.checked), [setChecked]);
+  const BEHAVIOUR_GROUP = 'Behaviour props';
+  const disabled = boolean('Disabled', false, BEHAVIOUR_GROUP);
+  return <Switch checked={checked} disabled={disabled} onChange={onChange} />;
 };
 
-const story = storiesOf('UI/Switch', module);
-story.addDecorator(withCenteredStory);
-story.add('switch', () => <SwitchWrapper />);
+export const uncontrolled = () => {
+  const BEHAVIOUR_GROUP = 'Behaviour props';
+  const disabled = boolean('Disabled', false, BEHAVIOUR_GROUP);
+  return <Switch disabled={disabled} />;
+};

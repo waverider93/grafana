@@ -1,9 +1,8 @@
 import { Observable } from 'rxjs';
-import { DataQuery, PanelData, DataSourceApi } from '@grafana/ui';
 import { QueryRunnerOptions } from 'app/features/dashboard/state/PanelQueryRunner';
 import { DashboardQuery, SHARED_DASHBODARD_QUERY } from './types';
 import { getDashboardSrv } from 'app/features/dashboard/services/DashboardSrv';
-import { LoadingState, DefaultTimeRange } from '@grafana/data';
+import { LoadingState, DefaultTimeRange, DataQuery, PanelData, DataSourceApi } from '@grafana/data';
 
 export function isSharedDashboardQuery(datasource: string | DataSourceApi) {
   if (!datasource) {
@@ -38,14 +37,13 @@ export function runSharedRequest(options: QueryRunnerOptions): Observable<PanelD
     const listenToRunner = listenToPanel.getQueryRunner();
     const subscription = listenToRunner.getData(false).subscribe({
       next: (data: PanelData) => {
-        console.log('got data from other panel', data);
         subscriber.next(data);
       },
     });
 
     // If we are in fullscreen the other panel will not execute any queries
     // So we have to trigger it from here
-    if (currentPanel.fullscreen) {
+    if (currentPanel.isViewing || currentPanel.isEditing) {
       const { datasource, targets } = listenToPanel;
       const modified = {
         ...options,

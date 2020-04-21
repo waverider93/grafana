@@ -1,7 +1,6 @@
 import 'vendor/flot/jquery.flot';
 import _ from 'lodash';
-import { GrafanaThemeType, getColorFromHexRgbOrName } from '@grafana/ui';
-import { dateTime, DateTime, AbsoluteTimeRange } from '@grafana/data';
+import { GrafanaThemeType, getColorFromHexRgbOrName, dateTime, DateTime, AbsoluteTimeRange } from '@grafana/data';
 
 type TimeRegionColorDefinition = {
   fill: string | null;
@@ -171,17 +170,19 @@ export class TimeRegionManager {
 
         fromEnd = dateTime(fromStart);
 
-        if (hRange.from.h <= hRange.to.h) {
-          fromEnd.add(hRange.to.h - hRange.from.h, 'hours');
-        } else if (hRange.from.h > hRange.to.h) {
-          while (fromEnd.hour() !== hRange.to.h) {
-            fromEnd.add(1, 'hours');
-          }
-        } else {
-          fromEnd.add(24 - hRange.from.h, 'hours');
+        if (fromEnd.hour) {
+          if (hRange.from.h <= hRange.to.h) {
+            fromEnd.add(hRange.to.h - hRange.from.h, 'hours');
+          } else if (hRange.from.h > hRange.to.h) {
+            while (fromEnd.hour() !== hRange.to.h) {
+              fromEnd.add(1, 'hours');
+            }
+          } else {
+            fromEnd.add(24 - hRange.from.h, 'hours');
 
-          while (fromEnd.hour() !== hRange.to.h) {
-            fromEnd.add(1, 'hours');
+            while (fromEnd.hour() !== hRange.to.h) {
+              fromEnd.add(1, 'hours');
+            }
           }
         }
 

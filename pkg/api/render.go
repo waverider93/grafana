@@ -8,12 +8,12 @@ import (
 	"strings"
 	"time"
 
-	m "github.com/grafana/grafana/pkg/models"
+	"github.com/grafana/grafana/pkg/models"
 	"github.com/grafana/grafana/pkg/services/rendering"
 	"github.com/grafana/grafana/pkg/util"
 )
 
-func (hs *HTTPServer) RenderToPng(c *m.ReqContext) {
+func (hs *HTTPServer) RenderToPng(c *models.ReqContext) {
 	queryReader, err := util.NewURLQueryReader(c.Req.URL)
 	if err != nil {
 		c.Handle(400, "Render parameters error", err)
@@ -40,6 +40,7 @@ func (hs *HTTPServer) RenderToPng(c *m.ReqContext) {
 		return
 	}
 
+	maxConcurrentLimitForApiCalls := 30
 	result, err := hs.RenderService.Render(c.Req.Context(), rendering.Opts{
 		Width:           width,
 		Height:          height,
@@ -50,7 +51,7 @@ func (hs *HTTPServer) RenderToPng(c *m.ReqContext) {
 		Path:            c.Params("*") + queryParams,
 		Timezone:        queryReader.Get("tz", ""),
 		Encoding:        queryReader.Get("encoding", ""),
-		ConcurrentLimit: 30,
+		ConcurrentLimit: maxConcurrentLimitForApiCalls,
 	})
 
 	if err != nil && err == rendering.ErrTimeout {

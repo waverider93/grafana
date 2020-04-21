@@ -2,6 +2,13 @@ import { configure } from 'enzyme';
 import Adapter from 'enzyme-adapter-react-16';
 import 'jquery';
 import $ from 'jquery';
+import 'mutationobserver-shim';
+
+const global = window as any;
+global.$ = global.jQuery = $;
+
+import '../vendor/flot/jquery.flot';
+import '../vendor/flot/jquery.flot.time';
 import 'angular';
 import angular from 'angular';
 
@@ -17,9 +24,6 @@ jest.mock('app/core/core', () => ({}));
 jest.mock('app/features/plugins/plugin_loader', () => ({}));
 
 configure({ adapter: new Adapter() });
-
-const global = window as any;
-global.$ = global.jQuery = $;
 
 const localStorageMock = (() => {
   let store: any = {};
@@ -40,8 +44,6 @@ const localStorageMock = (() => {
 })();
 
 global.localStorage = localStorageMock;
-
-HTMLCanvasElement.prototype.getContext = jest.fn() as any;
 
 const throwUnhandledRejections = () => {
   process.on('unhandledRejection', err => {

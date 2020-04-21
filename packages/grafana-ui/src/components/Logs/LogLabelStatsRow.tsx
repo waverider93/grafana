@@ -2,7 +2,7 @@ import React, { FunctionComponent, useContext } from 'react';
 import { css, cx } from 'emotion';
 
 import { ThemeContext } from '../../themes/ThemeContext';
-import { GrafanaTheme } from '../../types/theme';
+import { GrafanaTheme } from '@grafana/data';
 
 const getStyles = (theme: GrafanaTheme) => ({
   logsStatsRow: css`
@@ -11,16 +11,8 @@ const getStyles = (theme: GrafanaTheme) => ({
   `,
   logsStatsRowActive: css`
     label: logs-stats-row--active;
-    color: ${theme.colors.blue};
+    color: ${theme.colors.textBlue};
     position: relative;
-
-    ::after {
-      display: inline;
-      content: '*';
-      position: absolute;
-      top: 0;
-      left: -8px;
-    }
   `,
   logsStatsRowLabel: css`
     label: logs-stats-row__label;
@@ -54,8 +46,7 @@ const getStyles = (theme: GrafanaTheme) => ({
     label: logs-stats-row__innerbar;
     height: 4px;
     overflow: hidden;
-    background: ${theme.colors.textFaint};
-    background: ${theme.colors.blue};
+    background: ${theme.colors.bgBlue1};
   `,
 });
 
